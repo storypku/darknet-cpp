@@ -592,6 +592,89 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
     }
 }
 
+void validate_detector_PRcurve(char *datacfg, char *cfgfile, char *weightfile)
+{
+    list *options = read_data_cfg(datacfg);
+    char *valid_images = option_find_str(options, "valid", "data/voc.2007.test");
+
+    network net = parse_network_cfg(cfgfile);
+    if(weightfile){
+        load_weights(&net, weightfile);
+    }
+    set_batch_network(&net, 1);
+    fprintf(stderr, "Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
+    srand(time(0));
+
+    list *plist = get_paths(valid_images);
+    char **paths = (char **)list_to_array(plist);
+
+    layer l = net.layers[net.n-1];
+    int classes = l.classes;
+
+    int j, k;
+    box *boxes = calloc(l.w*l.h*l.n, sizeof(box));
+    float **probs = calloc(l.w*l.h*l.n, sizeof(float *));
+    for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = calloc(classes+1, sizeof(float *));
+
+    int m = plist->size;
+    int i=0;
+
+    float iou_thresh = .5;
+    float nms = .4;
+ 
+    for(float thresh = 0; thresh < 1; thresh = thresh + 0.01){	
+	int total = 0;
+        int TP = 0, FP = 0;
+        int proposals = 0;
+    	float avg_iou = 0;	
+	for(i = 0; i < m; ++i){
+		char *path = paths[i];
+		image orig = load_image_color(path, 0, 0);
+		image sized = resize_image(orig, net.w, net.h);
+		char *id = basecfg(path);
+		network_predict(net, sized.data);
+		get_region_boxes(l, sized.w, sized.h, net.w, net.h, thresh, probs, boxes, 1, 0, .5, 1);
+		if (nms) do_nms(boxes, probs, l.w*l.h*l.n, 1, nms);
+
+		char labelpath[4096];
+		find_replace(path, "images", "labels", labelpath);
+		find_replace(labelpath, "JPEGImages", "labels", labelpath);
+		find_replace(labelpath, ".png", ".txt", labelpath);
+		find_replace(labelpath, ".jpg", ".txt", labelpath);
+		find_replace(labelpath, ".JPEG", ".txt", labelpath);
+
+		int num_labels = 0;
+		box_label *truth = read_boxes(labelpath, &num_labels);
+		for(k = 0; k < l.w*l.h*l.n; ++k){
+		    if(probs[k][0] > thresh){
+			++proposals;
+		    }
+		}
+		for (j = 0; j < num_labels; ++j) {
+		    ++total;
+		    box t = {truth[j].x, truth[j].y, truth[j].w, truth[j].h};
+		    float best_iou = 0;
+		    for(k = 0; k < l.w*l.h*l.n; ++k){
+			float iou = box_iou(boxes[k], t);
+			if(probs[k][0] > thresh && iou > best_iou){
+			    best_iou = iou;
+			}
+		    }
+		    avg_iou += best_iou;
+		    if(best_iou > iou_thresh){
+			++TP;
+		    }
+		}
+		FP = proposals - TP;
+
+		free(id);
+		free_image(orig);
+		free_image(sized);
+	}
+	fprintf(stderr, "Thresh:%.4f\tRecall:%.2f%%\tPrecision:%.2f%%\n", thresh, 100.*TP/total, 100.*TP/(TP+FP));
+    }
+}
+
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen)
 {
     list *options = read_data_cfg(datacfg);
@@ -715,6 +798,7 @@ void run_detector(int argc, char **argv)
     else if(0==strcmp(argv[2], "valid")) validate_detector(datacfg, cfg, weights, outfile);
     else if(0==strcmp(argv[2], "valid2")) validate_detector_flip(datacfg, cfg, weights, outfile);
     else if(0==strcmp(argv[2], "recall")) validate_detector_recall(datacfg, cfg, weights);
+    else if(0==strcmp(argv[2], "PRcurve")) validate_detector_PRcurve(datacfg, cfg, weights);
     else if(0==strcmp(argv[2], "demo")) {
         list *options = read_data_cfg(datacfg);
         int classes = option_find_int(options, "classes", 20);
