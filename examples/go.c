@@ -1,9 +1,5 @@
-#include "network.h"
-#include "utils.h"
-#include "parser.h"
-#include "option_list.h"
-#include "blas.h"
-#include "data.h"
+#include "darknet.h"
+
 #include <unistd.h>
 
 int inverted = 1;

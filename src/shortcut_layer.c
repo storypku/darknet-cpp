@@ -1,6 +1,8 @@
 #include "shortcut_layer.h"
 #include "cuda.h"
 #include "blas.h"
+#include "activations.h"
+
 #include <stdio.h>
 #include <assert.h>
 

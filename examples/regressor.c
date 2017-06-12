@@ -1,11 +1,6 @@
-#include "network.h"
-#include "utils.h"
-#include "parser.h"
-#include "option_list.h"
-#include "blas.h"
-#include "assert.h"
-#include "cuda.h"
+#include "darknet.h"
 #include <sys/time.h>
+#include <assert.h>
 
 void train_regressor(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear)
 {

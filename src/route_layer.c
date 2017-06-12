@@ -1,6 +1,7 @@
 #include "route_layer.h"
 #include "cuda.h"
 #include "blas.h"
+
 #include <stdio.h>
 
 route_layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes)

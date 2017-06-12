@@ -53,21 +53,24 @@ void backward_scale_gpu(float *x_norm, float *delta, int batch, int n, int size,
     check_error(cudaPeekAtLastError());
 }
 
-__global__ void add_bias_kernel(float *output, float *biases, int n, int size)
+__global__ void add_bias_kernel(float *output, float *biases, int batch, int n, int size)
 {
-    int offset = blockIdx.x * blockDim.x + threadIdx.x;
-    int filter = blockIdx.y;
-    int batch = blockIdx.z;
+    int index = (blockIdx.x + blockIdx.y*gridDim.x) * blockDim.x + threadIdx.x;
+    if (index >= n*size*batch) return;
+    int i = index % size;
+    index /= size;
+    int j = index % n;
+    index /= n;
+    int k = index;
 
-    if(offset < size) output[(batch*n+filter)*size + offset] += biases[filter];
+    output[(k*n+j)*size + i] += biases[j];
 }
 
 void add_bias_gpu(float *output, float *biases, int batch, int n, int size)
 {
-    dim3 dimGrid((size-1)/BLOCK + 1, n, batch);
-    dim3 dimBlock(BLOCK, 1, 1);
+    int num = n*size*batch;
 
-    add_bias_kernel<<<dimGrid, dimBlock>>>(output, biases, n, size);
+    add_bias_kernel<<<cuda_gridsize(num), BLOCK>>>(output, biases, batch, n, size);
     check_error(cudaPeekAtLastError());
 }
 
@@ -786,6 +789,37 @@ __device__ void softmax_device(float *input, int n, float temp, int stride, floa
     for(i = 0; i < n; ++i){
         output[i*stride] /= sum;
     }
+}
+
+
+__global__ void softmax_tree_kernel(float *input, int spatial, int batch, int stride, float temp, float *output, int groups, int *group_size, int *group_offset)
+{
+    int id = (blockIdx.x + blockIdx.y*gridDim.x) * blockDim.x + threadIdx.x;
+    if (id >= spatial*batch*groups) return;
+    int s = id % spatial;
+    id = id / spatial;
+    int g = id % groups;
+    int b = id / groups;
+    int goff = group_offset[g]*spatial;
+    int boff = b*stride;
+    softmax_device(input + goff + boff + s, group_size[g], temp, spatial, output + goff + boff + s);
+}
+
+extern "C" void softmax_tree(float *input, int spatial, int batch, int stride, float temp, float *output, tree hier)
+{
+    //int *tree_groups_size = cuda_make_int_array(hier.group_size, hier.groups);
+    //int *tree_groups_offset = cuda_make_int_array(hier.group_offset, hier.groups);
+    static int *tree_groups_size = 0;
+    static int *tree_groups_offset = 0;
+    if(!tree_groups_size){
+        tree_groups_size = cuda_make_int_array(hier.group_size, hier.groups);
+        tree_groups_offset = cuda_make_int_array(hier.group_offset, hier.groups);
+    }
+    int num = spatial*batch*hier.groups;
+    softmax_tree_kernel<<<cuda_gridsize(num), BLOCK>>>(input, spatial, batch, stride, temp, output, hier.groups, tree_groups_size, tree_groups_offset);
+    check_error(cudaPeekAtLastError());
+    //cuda_free((float *)tree_groups_size);
+    //cuda_free((float *)tree_groups_offset);
 }
 
 __global__ void softmax_kernel(float *input, int n, int batch, int batch_offset, int groups, int group_offset, int stride, float temp, float *output)
