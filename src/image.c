@@ -214,7 +214,12 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
-                image label = get_label(alphabet, names[class], (im.h*.03)/10);
+		char label_prob[20];
+                sprintf(label_prob, "-%.0f%%", prob*100);
+                char* label_text = (char *) malloc(1 + strlen(names[class]) + strlen(label_prob) );;
+                strcpy(label_text, names[class]);
+                strcat(label_text, label_prob);
+                image label = get_label(alphabet, label_text, (im.h*.03)/10);
                 draw_label(im, top + width, left, label, rgb);
                 free_image(label);
             }
@@ -459,7 +464,7 @@ void show_image_cv(image p, const char *name, IplImage *disp)
     static CvVideoWriter* output_video = NULL;
     if (output_video == NULL){
         const char* output_name = "demo_output.avi";
-        output_video = cvCreateVideoWriter(output_name, CV_FOURCC('D', 'I', 'V', 'X'), 25, size, 1);
+        output_video = cvCreateVideoWriter(output_name, CV_FOURCC('M', 'J', 'P', 'G'), 25, size, 1);
     }
     cvWriteFrame(output_video, disp);
 
