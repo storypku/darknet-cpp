@@ -188,7 +188,33 @@ static void print_cocos(FILE *fp, char *image_path, box *boxes, float **probs, i
     }
 }
 
-void print_detector_detections(FILE **fps, char *id, box *boxes, float **probs, int total, int classes, int w, int h)
+static void print_dollar_detections(FILE *fp, char *id, box *boxes, float **probs, int num_boxes, int classes, int w, int h)
+{
+    int i, j;
+
+    for(i = 0; i < num_boxes; ++i){
+        float xmin = boxes[i].x - boxes[i].w/2.;
+        float xmax = boxes[i].x + boxes[i].w/2.;
+        float ymin = boxes[i].y - boxes[i].h/2.;
+        float ymax = boxes[i].y + boxes[i].h/2.;
+
+        if (xmin < 0) xmin = 0;
+        if (ymin < 0) ymin = 0;
+        if (xmax > w) xmax = w;
+        if (ymax > h) ymax = h;
+
+        float bx = xmin;
+        float by = ymin;
+        float bw = xmax - xmin;
+        float bh = ymax - ymin;
+
+        for(j = 0; j < classes; ++j){
+            if (probs[i][j]) fprintf(fp, "%s,%f,%f,%f,%f,%f,%d\n", id, bx, by, bw, bh, probs[i][j], j);
+        }
+    }
+}
+
+static void print_voc_detections(FILE **fps, char *id, box *boxes, float **probs, int total, int classes, int w, int h)
 {
     int i, j;
     for(i = 0; i < total; ++i){
@@ -203,13 +229,12 @@ void print_detector_detections(FILE **fps, char *id, box *boxes, float **probs, 
         if (ymax > h) ymax = h;
 
         for(j = 0; j < classes; ++j){
-            if (probs[i][j]) fprintf(fps[j], "%s %f %f %f %f %f\n", id, probs[i][j],
-                    xmin, ymin, xmax, ymax);
+            if (probs[i][j]) fprintf(fps[j], "%s %f %f %f %f %f\n", id, probs[i][j], xmin, ymin, xmax, ymax);
         }
     }
 }
 
-void print_imagenet_detections(FILE *fp, int id, box *boxes, float **probs, int total, int classes, int w, int h)
+static void print_imagenet_detections(FILE *fp, int id, box *boxes, float **probs, int total, int classes, int w, int h)
 {
     int i, j;
     for(i = 0; i < total; ++i){
@@ -225,8 +250,7 @@ void print_imagenet_detections(FILE *fp, int id, box *boxes, float **probs, int 
 
         for(j = 0; j < classes; ++j){
             int class = j;
-            if (probs[i][class]) fprintf(fp, "%d %d %f %f %f %f %f\n", id, j+1, probs[i][class],
-                    xmin, ymin, xmax, ymax);
+            if (probs[i][class]) fprintf(fp, "%d %d %f %f %f %f %f\n", id, j+1, probs[i][class], xmin, ymin, xmax, ymax);
         }
     }
 }
@@ -348,7 +372,7 @@ void validate_detector_flip(char *datacfg, char *cfgfile, char *weightfile, char
             } else if (imagenet){
                 print_imagenet_detections(fp, i+t-nthreads+1, boxes, probs, l.w*l.h*l.n, classes, w, h);
             } else {
-                print_detector_detections(fps, id, boxes, probs, l.w*l.h*l.n, classes, w, h);
+                print_voc_detections(fps, id, boxes, probs, l.w*l.h*l.n, classes, w, h);
             }
             free(id);
             free_image(val[t]);
@@ -398,28 +422,55 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
     FILE *fp = 0;
     FILE **fps = 0;
     int coco = 0;
+    int dollar = 0;
     int imagenet = 0;
+
+    // TODO: Since we use darknet for single class detectors mostly I decided to add the class name to the detection file
+    // However, it would be nice to specify the output filename as a parameter to the example
+
+    // Microsoft COCO format
     if(0==strcmp(type, "coco")){
         if(!outfile) outfile = "coco_results";
         snprintf(buff, 1024, "%s/%s.json", prefix, outfile);
         fp = fopen(buff, "w");
         fprintf(fp, "[\n");
         coco = 1;
+    // ImageNet format
     } else if(0==strcmp(type, "imagenet")){
-        if(!outfile) outfile = "imagenet-detection";
-        snprintf(buff, 1024, "%s/%s.txt", prefix, outfile);
+        if(!outfile) outfile = "imagenet_results_";
+        snprintf(buff, 1024, "%s/%s%s.txt", prefix, outfile, names[0]);
         fp = fopen(buff, "w");
         imagenet = 1;
         classes = 200;
+        fprintf(fp, "## Detections saved in ImageNet format\n");
+        fprintf(fp, "## Contains a single file for multiclass detectors, but passes a class label\n");
+        fprintf(fp, "## FORMAT: imageName classLabel score upperLeftX upperLeftY width height\n");
+    // Dollar ACF format
+    } else if(0==strcmp(type, "dollar")){
+        if(!outfile) outfile = "dollar_results_";
+        snprintf(buff, 1024, "%s/%s%s.txt", prefix, outfile, names[0]);
+        fp = fopen(buff, "w");
+        dollar = 1;
+        fprintf(fp, "## Detections saved in Dollar ACF format\n");
+        fprintf(fp, "## Contains a single file for multiclass detectors, but passes a class label\n");
+        fprintf(fp, "## FORMAT: imageName upperLeftX upperLeftY width height score classLabel\n");
+	fprintf(fp, "## LABELS: ");
+	for(int k = 0; k < classes; k++){
+	   fprintf(fp, "%d %s | ", k, names[k]);
+	}
+        fprintf(fp, "\n");
+    // Pascal VOC2012/2017 format
     } else {
-        if(!outfile) outfile = "comp4_det_test_";
+        if(!outfile) outfile = "voc_results_";
         fps = calloc(classes, sizeof(FILE *));
         for(j = 0; j < classes; ++j){
             snprintf(buff, 1024, "%s/%s%s.txt", prefix, outfile, names[j]);
             fps[j] = fopen(buff, "w");
+            fprintf(fps[j], "## Detections saved in Pascal VOC2012/2017 format\n");
+            fprintf(fps[j], "## This is file is output generated for the %s class.\n", names[j]);
+            fprintf(fps[j], "## FORMAT: imageName score upperLeftXDetection upperLeftYDetection widthDetection\n");
         }
     }
-
 
     box *boxes = calloc(l.w*l.h*l.n, sizeof(box));
     float **probs = calloc(l.w*l.h*l.n, sizeof(float *));
@@ -478,8 +529,10 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
                 print_cocos(fp, path, boxes, probs, l.w*l.h*l.n, classes, w, h);
             } else if (imagenet){
                 print_imagenet_detections(fp, i+t-nthreads+1, boxes, probs, l.w*l.h*l.n, classes, w, h);
+            } else if (dollar){
+                print_dollar_detections(fp, id, boxes, probs, l.w*l.h*l.n, classes, w, h);
             } else {
-                print_detector_detections(fps, id, boxes, probs, l.w*l.h*l.n, classes, w, h);
+                print_voc_detections(fps, id, boxes, probs, l.w*l.h*l.n, classes, w, h);
             }
             free(id);
             free_image(val[t]);
