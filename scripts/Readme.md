@@ -9,3 +9,9 @@ The following scripts for creating training annotations are available:
   1. The Matlab script `Dollar2Yolo.m` file on his turn, transforms the Dollar annotations into an annotation format that is interpretable by the YOLO framework for training.
 
 !!It is important to mention that the above mentioned scripts are the results of some quick and dirty programming. For example, the Annotations2Dollar Matlab file will crash if more than three annotattions are present in one file. Thus, before using them, please have a look at the code and modify it to meet your needs.!!
+
+
+
+ * To convert annotations from labelimg (VOC) to work with yolo, use the VOC2YOLO.py script
+   This script is a single class improved version of the voc_label.py script and uses python3 with 4 arguments
+   `python3 VOC2YOLO.py [PATH_IMG_FOLDER] [PATH_VOC_FOLDER] [OUTPUT_PATH_IMG_FOLDER] [OUTPUT_PATH_YOLO_FOLDER]`
