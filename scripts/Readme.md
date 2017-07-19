@@ -12,6 +12,7 @@ The following scripts for creating training annotations are available:
 
 
 
- * To convert annotations from labelimg (VOC) to work with yolo, use the VOC2YOLO.py script
-   This script is a single class improved version of the voc_label.py script and uses python3 with 4 arguments
+ * To convert annotations from labelimg (VOC) to work with yolo, use the VOC2YOLO.py scripti.
+   This script is a single class improved version of the voc_label.py script and uses python3 with 4 arguments.
+
    `python3 VOC2YOLO.py [PATH_IMG_FOLDER] [PATH_VOC_FOLDER] [OUTPUT_PATH_IMG_FOLDER] [OUTPUT_PATH_YOLO_FOLDER]`
