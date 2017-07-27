@@ -454,7 +454,7 @@ void show_image_cv(image p, const char *name, IplImage *disp)
     sprintf(buff, "%s", name);
 
     int step = disp->widthStep;
-    cvNamedWindow(buff, CV_WINDOW_NORMAL); 
+    cvNamedWindow(buff, CV_WINDOW_AUTOSIZE); 
     //cvMoveWindow(buff, 100*(windows%10) + 200*(windows/10), 100*(windows%10));
     ++windows;
     for(y = 0; y < p.h; ++y){
@@ -485,9 +485,12 @@ void show_image_cv(image p, const char *name, IplImage *disp)
         const char* output_name = "demo_output.avi";
         output_video = cvCreateVideoWriter(output_name, CV_FOURCC('M', 'J', 'P', 'G'), 25, size, 1);
     }
+
     cvWriteFrame(output_video, disp);
 
-    cvShowImage(buff, disp);
+    IplImage *dispsmall = cvCreateImage(cvSize(320, 240), IPL_DEPTH_8U, p.c);
+    cvResize(disp, dispsmall, CV_INTER_LINEAR);
+    cvShowImage(buff, dispsmall);
 }
 #endif
 
@@ -568,6 +571,26 @@ void flush_stream_buffer(CvCapture *cap, int n)
     for(i = 0; i < n; ++i) {
         cvQueryFrame(cap);
     }
+}
+
+image get_image_from_grabber(struct FrameGrabber *grabber)
+{
+    IplImage* src = frame_grabber_grab(grabber);
+    if (!src) return make_empty_image(0,0,0);
+    image im = ipl_to_image(src);
+    cvReleaseImage(&src);
+    rgbgr_image(im);
+    return im;
+}
+
+int fill_image_from_grabber(struct FrameGrabber *grabber, image im)
+{
+    IplImage* src = frame_grabber_grab(grabber);
+    if (!src) return 0;
+    ipl_into_image(src, im);
+    cvReleaseImage(&src);
+    rgbgr_image(im);
+    return 1;
 }
 
 image get_image_from_stream(CvCapture *cap)
