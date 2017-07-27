@@ -17,6 +17,8 @@ static void *frame_grabber_thread(void *v_self)
 
 int frame_grabber_open(struct FrameGrabber *self, CvCapture *cap)
 {
+    IplImage *image;
+    malloc(10);
     self->img = NULL;
     self->cap = cap;
     pthread_mutex_unlock(&self->mutex);
@@ -30,9 +32,13 @@ int frame_grabber_open(struct FrameGrabber *self, CvCapture *cap)
     }
 
     /* wait until thread is running by grabbing frames */
-    while (frame_grabber_grab(self) == NULL) {
+    while (1) {
+        image = frame_grabber_grab(self);
+        if (image)
+            break;
         usleep(1000);
     }
+    cvReleaseImage(&image);
 
     return 0;
 }
@@ -55,4 +61,5 @@ void frame_grabber_close(struct FrameGrabber *self)
 {
     self->running = 0;
     pthread_join(self->thread, NULL);
+    cvReleaseImage(&self->img);
 }

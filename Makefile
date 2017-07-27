@@ -28,7 +28,8 @@ COMMON= -Iinclude/ -Isrc/
 CFLAGS=-Wall -Wfatal-errors -fPIC
 
 ifeq ($(DEBUG), 1) 
-OPTS=-O0 -g
+OPTS= -g -fno-omit-frame-pointer -fsanitize=leak
+LDFLAGS += -fno-omit-frame-pointer -fsanitize=leak
 endif
 
 CFLAGS+=$(OPTS)
