@@ -18,7 +18,6 @@ static void *frame_grabber_thread(void *v_self)
 int frame_grabber_open(struct FrameGrabber *self, CvCapture *cap)
 {
     IplImage *image;
-    malloc(10);
     self->img = NULL;
     self->cap = cap;
     pthread_mutex_unlock(&self->mutex);

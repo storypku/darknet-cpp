@@ -233,7 +233,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
-		char label_prob[20];
+                char label_prob[20];
                 sprintf(label_prob, "-%.0f%%", prob*100);
                 char* label_text = (char *) malloc(1 + strlen(names[class]) + strlen(label_prob) );;
                 strcpy(label_text, names[class]);
@@ -241,6 +241,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
                 image label = get_label(alphabet, label_text, (im.h*.03)/10);
                 draw_label(im, top + width, left, label, rgb);
                 free_image(label);
+                free(label_text);
             }
         }
     }
@@ -491,6 +492,7 @@ void show_image_cv(image p, const char *name, IplImage *disp)
     IplImage *dispsmall = cvCreateImage(cvSize(320, 240), IPL_DEPTH_8U, p.c);
     cvResize(disp, dispsmall, CV_INTER_LINEAR);
     cvShowImage(buff, dispsmall);
+    cvReleaseImage(&dispsmall);
 }
 #endif
 
