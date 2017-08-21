@@ -557,8 +557,8 @@ typedef struct list{
 } list;
 
 pthread_t load_data(load_args args);
-list *read_data_cfg(char *filename);
-list *read_cfg(char *filename);
+list *read_data_cfg(const char *filename);
+list *read_cfg(const char *filename);
 
 void forward_network(network net);
 void backward_network(network net);
@@ -623,11 +623,11 @@ void get_detection_boxes(layer l, int w, int h, float thresh, float **probs, box
 char *option_find_str(list *l, char *key, char *def);
 int option_find_int(list *l, char *key, int def);
 
-network parse_network_cfg(char *filename);
+network parse_network_cfg(const char *filename);
 void save_weights(network net, char *filename);
-void load_weights(network *net, char *filename);
+void load_weights(network *net, const char *filename);
 void save_weights_upto(network net, char *filename, int cutoff);
-void load_weights_upto(network *net, char *filename, int start, int cutoff);
+void load_weights_upto(network *net, const char *filename, int start, int cutoff);
 
 void zero_objectness(layer l);
 void get_region_boxes(layer l, int w, int h, int netw, int neth, float thresh, float **probs, box *boxes, int only_objectness, int *map, float tree_thresh, int relative);

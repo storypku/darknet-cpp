@@ -1,6 +1,8 @@
 #include "frame_grabber.h"
 #include <unistd.h>
 
+#ifdef OPENCV
+
 static void *frame_grabber_thread(void *v_self)
 {
     struct FrameGrabber *self = v_self;
@@ -62,3 +64,5 @@ void frame_grabber_close(struct FrameGrabber *self)
     pthread_join(self->thread, NULL);
     cvReleaseImage(&self->img);
 }
+
+#endif

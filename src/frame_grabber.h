@@ -4,6 +4,7 @@
 #include "darknet.h"
 
 #ifndef __cplusplus
+#ifdef OPENCV
 
 struct FrameGrabber
 {
@@ -21,7 +22,8 @@ int frame_grabber_open(struct FrameGrabber *self, CvCapture *cap);
 IplImage *frame_grabber_grab(struct FrameGrabber *self);
 
 void frame_grabber_close(struct FrameGrabber *self);
+#endif /* OPENCV */
 
-#endif
+#endif /* __cplusplus */
 
 #endif /* FRAME_GRABBER_H */
