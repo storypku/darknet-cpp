@@ -1,23 +1,16 @@
 /*
- *  Author: EAVISE
- *  Description: C++ API for darknet framework.
- *  It currently only supports interence detection
+ *  Author: Maarten Vandersteegen EAVISE
+ *  Description: Detector API
  */
-#ifndef DARKNET_PROXY_H
-#define DARKNET_PROXY_H
+
+#ifndef DETECTOR_HPP
+#define DETECTOR_HPP
 
 #include <string>
 #include <opencv2/opencv.hpp>
 
 #include "darknet.h"
-
-#ifdef _DEBUG
-#define DPRINTF printf
-#define EPRINTF printf
-#else
-#define DPRINTF
-#define EPRINTF printf
-#endif
+#include "image.hpp"
 
 namespace Darknet
 {
@@ -50,15 +43,15 @@ public:
 
     /*
      *  Run the network on a given input image
+     *  image:          image dimensions must match the network input size
      *  thres:          minimum probability score a detection needs to be considered a detection
      *  hier_thres:     ?
      *  objectCount:    ouput parameter -> number of detected objects
      *  returns true on success
      */
-    bool detect(const cv::Mat & inputMat,
+    bool detect(const Image & image,
                 float thresh,
-                float hier_thresh,
-                int & objectCount);
+                float hier_thresh);
 
     /*
      *  Retrieve detections calulated with the detect method
@@ -68,10 +61,10 @@ public:
     bool get_detections(std::vector<Detection>& detections);
 
     /*
-     *  Draw box overlay of detections on an image
-     *  NOTE: image size must match the given image to the detect method in order to get correct boxing
+     *  Detector network input dimensions
      */
-    bool get_overlay(cv::Mat& image);
+    int get_width();
+    int get_height();
 
 private:
 
@@ -90,4 +83,4 @@ private:
 
 } /* namespace Darknet */
 
-#endif /* DARKNET_PROXY_H */
+#endif /* DETECTOR_HPP */

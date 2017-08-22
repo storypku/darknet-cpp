@@ -1,7 +1,7 @@
 GPU=1
 CUDNN=1
-OPENCV=1
-DEBUG=0
+OPENCV=0
+DEBUG=1
 
 ARCH= -gencode arch=compute_20,code=[sm_20,sm_21] \
       -gencode arch=compute_30,code=sm_30 \
@@ -28,8 +28,8 @@ COMMON= -Iinclude/ -Isrc/
 CFLAGS=-Wall -Wfatal-errors -fPIC
 
 ifeq ($(DEBUG), 1) 
-OPTS= -g -fno-omit-frame-pointer -fsanitize=address
-LDFLAGS += -fno-omit-frame-pointer -fsanitize=address
+OPTS= -g -O0
+LDFLAGS +=
 endif
 
 CFLAGS+=$(OPTS)

@@ -1,15 +1,11 @@
-/*************************************************************************
- * arapaho                                                               *
- *                                                                       *
- * C++ API for Yolo v2 (Detection)                                       *
- *                                                                       *
- * https://github.com/prabindh/darknet                                   *
- *                                                                       *
- * Forked from, https://github.com/pjreddie/darknet                      *
- *                                                                       *
- *************************************************************************/
+/*
+ *  Author: EAVISE
+ *  Description: C++ API for darknet framework.
+ *  It currently only supports inference detection
+ */
 
-#include "darknet_proxy.h"
+#include "detector.hpp"
+#include "logging.hpp"
 #include <boost/filesystem.hpp>
 
 using namespace Darknet;
@@ -39,11 +35,6 @@ Detector::~Detector()
     {
         //todo
     }
-
-    m_boxes = 0;
-    m_probs = 0;
-    m_classNames = 0;
-    m_bSetup = false;
 }
 
 bool Detector::setup(std::string data_cfg_file,
@@ -144,60 +135,36 @@ clean_exit:
 }
 
 bool Detector::detect(
-            const cv::Mat & inputMat,
+            const Image & image,
             float thresh,
-            float hier_thresh,
-            int & objectCount)
+            float hier_thresh)
 {
     int i;
 
-    objectCount = 0;
     m_threshold = thresh;
 
-    // Early exits
-    if(!m_bSetup)
-    {
+    if (!m_bSetup) {
         EPRINTF("Not Setup!\n");
         return false;
     }
 
-    if(inputMat.empty())
-    {
-        EPRINTF("Error in inputImage! [bgr = %d, w = %d, h = %d]\n",
-                    !inputMat.data, inputMat.cols != m_net.w,
-                    inputMat.rows != m_net.h);
+    if (m_net.w != image.width || m_net.h != image.height || m_net.c != image.channels) {
+        EPRINTF("Given image dimensions do not match the network size: "
+                "image dimensions: w = %d, h = %d, c = %d, network dimensions: w = %d, h = %d, c = %d\n",
+                image.width, image.height, image.channels, m_net.w, m_net.h, m_net.c);
         return false;
     }
 
-    //Convert to rgb
-    cv::Mat inputRgb;
-    cvtColor(inputMat, inputRgb, CV_BGR2RGB);
-
-    // Convert the bytes to float
-    cv::Mat floatMat;
-    inputRgb.convertTo(floatMat, CV_32FC3, 1/255.0);
-
-    if (floatMat.rows != m_net.h || floatMat.cols != m_net.w)
-    {
-        DPRINTF("Detect: Resizing image to match network \n");
-        resize(floatMat, floatMat, cv::Size(m_net.w, m_net.h));
-    }
-
-    // Get the image to suit darknet
-    std::vector<cv::Mat> floatMatChannels(3);
-    cv::split(floatMat, floatMatChannels);
-    cv::vconcat(floatMatChannels, floatMat);
-
     // Predict
-    (void) network_predict(m_net, reinterpret_cast<float*>(floatMat.data));
-    get_region_boxes(m_l, inputMat.cols, inputMat.rows, m_net.w, m_net.h, thresh, m_probs, m_boxes, 0, 0, hier_thresh, 1);
+    (void) network_predict(m_net, image.data);
+    get_region_boxes(m_l, m_net.w, m_net.h, m_net.w, m_net.h, thresh, m_probs, m_boxes, 0, 0, hier_thresh, 1);
 
     // Apply non maxima suppression
     DPRINTF("m_l.softmax_tree = %p, nms = %f\n", m_l.softmax_tree, m_nms);
     do_nms_sort(m_boxes, m_probs, m_l.w * m_l.h * m_l.n, m_l.classes, m_nms);
 
+    // Extract detections in correct format
     m_detections.clear();
-
     for (i = 0; i < (m_l.w * m_l.h * m_l.n); ++i) {
         int classIndex = max_index(m_probs[i], m_l.classes);
         float prob = m_probs[i][classIndex];
@@ -212,7 +179,6 @@ bool Detector::detect(
             detection.label_index = classIndex;
             detection.label = m_classNames[classIndex];
             m_detections.push_back(detection);
-            objectCount++;
         }
     }
 
@@ -229,32 +195,18 @@ bool Detector::get_detections(std::vector<Detection>& detections)
     return true;
 }
 
-bool Detector::get_overlay(cv::Mat& image)
+int Detector::get_width()
 {
-    const std::vector<cv::Scalar> colors(  {cv::Scalar(255,0,255),
-                                            cv::Scalar(255,0,0),
-                                            cv::Scalar(255,255,0),
-                                            cv::Scalar(0,255,0),
-                                            cv::Scalar(0,255,255),
-                                            cv::Scalar(0,0,255)} );
-
     if (!m_bSetup)
-        return false;
+        return 0;
 
-    for (auto detection : m_detections) {
-        cv::Point left_top(     image.cols * (detection.x - (detection.width / 2)),
-                                image.rows * (detection.y - (detection.height / 2)));
-        cv::Point right_bottom( image.cols * (detection.x + (detection.width / 2)),
-                                image.rows * (detection.y + (detection.height / 2)));
+    return m_net.w;
+}
 
-        if (left_top.x < 0) left_top.x = 0;
-        if (left_top.y < 0) left_top.y = 0;
-        if (right_bottom.x > image.cols) right_bottom.x = image.cols - 1;
-        if (right_bottom.y > image.rows) right_bottom.y = image.rows - 1;
+int Detector::get_height()
+{
+    if (!m_bSetup)
+        return 0;
 
-        //TODO: add text labels
-        cv::rectangle(image, left_top, right_bottom, colors[detection.label_index % 6], image.rows * 0.012);
-    }
-
-    return true;
+    return m_net.h;
 }

@@ -319,6 +319,9 @@ void backward_region_layer(const layer l, network net)
      */
 }
 
+/*
+ *  Only usefull when aspect ratio of the network is different from given w and h
+ */
 void correct_region_boxes(box *boxes, int n, int w, int h, int netw, int neth, int relative)
 {
     int i;
