@@ -430,7 +430,7 @@ void get_region_boxes(layer l, int w, int h, int netw, int neth, float thresh, f
             }
         }
     }
-    correct_region_boxes(boxes, l.w*l.h*l.n, w, h, netw, neth, relative);
+    //correct_region_boxes(boxes, l.w*l.h*l.n, w, h, netw, neth, relative);
 }
 
 #ifdef GPU

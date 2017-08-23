@@ -48,3 +48,11 @@ bool Image::set(cv::Mat& image)
 
     return true;
 }
+
+void Image::operator=(const Image & image) {
+    m_floatMat = image.m_floatMat.clone();
+    data = reinterpret_cast<float *>(m_floatMat.data);
+    width = image.width;
+    height = image.height;
+    channels = image.channels;
+}

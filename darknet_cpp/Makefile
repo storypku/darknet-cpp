@@ -3,6 +3,8 @@ CC = $(CXX)
 
 ifeq ($(DEBUG), 1)
 CXXFLAGS += -g -O0
+else
+CXXFLAGS += -Ofast
 endif
 
 CXXFLAGS += -std=c++11
@@ -20,7 +22,7 @@ LDLIBS += $(shell pkg-config --libs opencv)
 CXXFLAGS += $(shell pkg-config --cflags opencv)
 
 # boost
-LDLIBS += -lboost_filesystem -lboost_system
+LDLIBS += -lboost_filesystem -lboost_system -pthread
 
 # cuda
 CXXFLAGS += -I/usr/local/cuda/include/

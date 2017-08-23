@@ -28,6 +28,8 @@ public:
      */
     bool set(cv::Mat& image);
 
+    void operator=(const Image & image);
+
     /*
      *  readonly fields
      */
