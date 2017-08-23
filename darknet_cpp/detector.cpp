@@ -24,16 +24,7 @@ Detector::Detector() :
 
 Detector::~Detector()
 {
-    // TODO - Massive cleanup here
-
-    if(m_boxes)
-        free(m_boxes);
-    if(m_probs)
-        free_ptrs((void **)m_probs, m_l.w*m_l.h*m_l.n);
-    if(m_classNames)
-    {
-        //todo
-    }
+    release();
 }
 
 bool Detector::setup(std::string data_cfg_file,
@@ -41,8 +32,11 @@ bool Detector::setup(std::string data_cfg_file,
                 std::string weight_cfg_file,
                 float nms)
 {
+    int j;
     char nameField[] = "names";
     char defaultName[] = "data/names.list";
+
+    m_nms = nms;
 
     if (!boost::filesystem::exists(data_cfg_file)) {
         DPRINTF("Data config file %s not found\n", data_cfg_file.c_str());
@@ -68,17 +62,10 @@ bool Detector::setup(std::string data_cfg_file,
     }
 
     m_classNames = get_labels(nameListFile);
-    if(!m_classNames)
-    {
+    if (!m_classNames) {
         DPRINTF("No valid class names specified in nameList file [%s]!\n", nameListFile);
         return false;
     }
-
-    int j;
-    bool ret = false;
-
-    m_bSetup = false;
-    m_nms = nms;
 
     m_net = parse_network_cfg(net_cfg_file.c_str());
     DPRINTF("Setup: net.n = %d\n", m_net.n);
@@ -95,35 +82,40 @@ bool Detector::setup(std::string data_cfg_file,
     m_boxes = (box *)calloc(m_l.w * m_l.h * m_l.n, sizeof(box));
     m_probs = (float **)calloc(m_l.w * m_l.h * m_l.n, sizeof(float *));
 
-    if(!m_boxes || !m_probs) {
+    if (!m_boxes || !m_probs) {
         EPRINTF("Error allocating boxes/probs, %p/%p !\n", m_boxes, m_probs);
-        goto clean_exit;
+        release();
+        return false;
     }
 
-    for(j = 0; j < m_l.w*m_l.h*m_l.n; ++j) {
+    for (j = 0; j < m_l.w*m_l.h*m_l.n; ++j) {
         m_probs[j] = (float*)calloc(m_l.classes + 1, sizeof(float));
         if(!m_probs[j]) {
             EPRINTF("Error allocating probs[%d]!\n", j);
-            goto clean_exit;
+            release();
+            return false;
         }
     }
 
-    ret = true;
-    m_bSetup = ret;
     DPRINTF("Setup: Done\n");
-    return ret;
+    m_bSetup = true;
+    return true;
+}
 
-clean_exit:
+void Detector::release()
+{
+    // TODO - Massive cleanup here
+
+    m_bSetup = false;
+
     if(m_boxes)
         free(m_boxes);
-
     if(m_probs)
         free_ptrs((void **)m_probs, m_l.w*m_l.h*m_l.n);
-
-    m_boxes = NULL;
-    m_probs = NULL;
-
-    return ret;
+    if(m_classNames)
+    {
+        //todo
+    }
 }
 
 bool Detector::detect(

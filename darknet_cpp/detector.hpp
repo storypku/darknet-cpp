@@ -32,6 +32,11 @@ public:
                 float nms);
 
     /*
+     *  Cleanup
+     */
+    void release();
+
+    /*
      *  Run the network on a given input image
      *  image:          image dimensions must match the network input size
      *  thres:          minimum probability score a detection needs to be considered a detection
