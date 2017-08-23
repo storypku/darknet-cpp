@@ -16,10 +16,10 @@
 
 using namespace cv;
 
-#define MAX_OBJECTS_PER_FRAME   (100)
-#define TARGET_SHOW_FPS         (10)
 #define GST_CAPTURE_STRING      "nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720,format=(string)I420, " \
                                 "framerate=(fraction)30/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink"
+#define GST_OUTPUT_STRING       "appsrc ! videoconvert ! video/x-raw, format=(string)BGRx ! nvvidconv ! video/x-raw(memory:NVMM), format=(string)I420 ! " \
+                                "omxh264enc ! video/x-h264, stream-format=byte-stream ! rtph264pay ! udpsink host=10.66.24.128 port=8554 sync=false async=false "
 
 static Darknet::Detector g_detector;
 static Darknet::Image g_dnimage_detection;
@@ -33,13 +33,31 @@ static bool detect_in_image(void)
     }
 
     g_detector_busy = false;
-    std::cout << "Done" << std::endl;
     return true;
+}
+
+static void print_stats(std::vector<Darknet::Detection> detections)
+{
+    static auto prevTime = std::chrono::system_clock::now();
+
+    auto now = std::chrono::system_clock::now();
+    std::chrono::duration<double> period = (now - prevTime);
+    prevTime = now;
+    std::cout << "FPS: " << 1 / period.count();
+
+    std::cout << "Labels: ";
+
+    for (auto detection : detections) {
+        std::cout << detection.label << ", ";
+    }
+
+    std::cout << std::endl;
 }
 
 int main(int argc, char *argv[])
 {
     cv::VideoCapture cap;
+    cv::VideoWriter writer;
     cv::Mat cvimage, cvimage_detection;
     Darknet::Image dnimage_detection;
     std::vector<Darknet::Detection> latest_detections;
@@ -54,22 +72,30 @@ int main(int argc, char *argv[])
     std::string input_cfg_file(argv[2]);
     std::string input_weights_file(argv[3]);
 
+    if (!cap.open(GST_CAPTURE_STRING)) {
+        std::cerr << "Could not open video input stream" << std::endl;
+        return -1;
+    }
+
+    if (!cap.read(cvimage)) {
+        std::cerr << "Failed to capture initial camera image" << std::endl;
+        return -1;
+    }
+
+    //TODO put '30' and other constants in defines
+    if (!writer.open(GST_OUTPUT_STRING, 0, 30, cvimage.size())) {
+        std::cerr << "Could not open video output stream" << std::endl;
+        return -1;
+    }
+
     if (!g_detector.setup(input_data_file, input_cfg_file, input_weights_file, 0.4, 2)) {
         std::cerr << "Setup failed" << std::endl;
         return -1;
     }
 
-    if (!cap.open(GST_CAPTURE_STRING)) {
-        std::cerr << "Could not open input stream" << std::endl;
-        return -1;
-    }
-
-    auto prevTime = std::chrono::system_clock::now();
     cv::Size detector_input_size(g_detector.get_width(), g_detector.get_height());
 
     //TODO: limit to only the person class
-    //TODO: add restreaming at 30fps
-
     while(1) {
 
         if (!cap.read(cvimage)) {
@@ -95,16 +121,11 @@ int main(int argc, char *argv[])
 
         // overlay detections
         Darknet::image_overlay(latest_detections, cvimage);
+        print_stats(latest_detections);
 
-        // display
-        resize(cvimage, cvimage, cv::Size(320, 180));
-        imshow("Overlay", cvimage);
-        waitKey(1);
+        // restream
+        writer.write(cvimage);
 
-        auto now = std::chrono::system_clock::now();
-        std::chrono::duration<double> period = (now - prevTime);
-        prevTime = now;
-        printf("==> FPS: %f\n", 1 / period.count());
     }
 
     return 0;
