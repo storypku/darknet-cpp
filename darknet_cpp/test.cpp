@@ -44,11 +44,10 @@ static void print_stats(std::vector<Darknet::Detection> detections)
     std::chrono::duration<double> period = (now - prevTime);
     prevTime = now;
     std::cout << "FPS: " << 1 / period.count();
-
-    std::cout << "Labels: ";
+    std::cout << " Labels: ";
 
     for (auto detection : detections) {
-        std::cout << detection.label << ", ";
+        std::cout << detection.label << ", " << detection.probability << "; ";
     }
 
     std::cout << std::endl;
@@ -61,7 +60,9 @@ int main(int argc, char *argv[])
     cv::Mat cvimage, cvimage_detection;
     Darknet::Image dnimage_detection;
     std::vector<Darknet::Detection> latest_detections;
+    std::vector<Darknet::Detection> latest_filtered_detections;
     std::thread detector_thread;
+    std::vector<std::string> detection_filter( {"person"} );
 
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " <input_data_file> <input_cfg_file> <input_weights_file>" << std::endl;
@@ -95,7 +96,6 @@ int main(int argc, char *argv[])
 
     cv::Size detector_input_size(g_detector.get_width(), g_detector.get_height());
 
-    //TODO: limit to only the person class
     while(1) {
 
         if (!cap.read(cvimage)) {
@@ -117,11 +117,14 @@ int main(int argc, char *argv[])
             g_dnimage_detection = dnimage_detection;
             g_detector_busy = true;
             detector_thread = std::thread(detect_in_image);
+
+            // filter detections
+            Darknet::filter_detections(latest_detections, latest_filtered_detections, detection_filter);
         }
 
         // overlay detections
-        Darknet::image_overlay(latest_detections, cvimage);
-        print_stats(latest_detections);
+        Darknet::image_overlay(latest_filtered_detections, cvimage);
+        print_stats(latest_filtered_detections);
 
         // restream
         writer.write(cvimage);

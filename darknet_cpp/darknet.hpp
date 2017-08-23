@@ -6,8 +6,9 @@
 #ifndef DARKNET_HPP
 #define DARKNET_HPP
 
+#include "detection.hpp"
 #include "detector.hpp"
 #include "image.hpp"
-#include "image_overlay.hpp"
+#include "utils.hpp"
 
 #endif /* DARKNET_HPP */

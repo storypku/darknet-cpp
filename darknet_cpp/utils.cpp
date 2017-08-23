@@ -3,11 +3,11 @@
  *  Description: Render detection bounding boxes on opencv images
  */
 
-#include "image_overlay.hpp"
+#include "utils.hpp"
 
 using namespace Darknet;
 
-void Darknet::image_overlay(std::vector<Detection> detections, cv::Mat& image)
+void Darknet::image_overlay(const std::vector<Detection> detections, cv::Mat& image)
 {
     const std::vector<cv::Scalar> colors(  {cv::Scalar(255,0,255),
                                             cv::Scalar(255,0,0),
@@ -29,5 +29,18 @@ void Darknet::image_overlay(std::vector<Detection> detections, cv::Mat& image)
 
         //TODO: add text labels
         cv::rectangle(image, left_top, right_bottom, colors[detection.label_index % 6], image.rows * 0.012);
+    }
+}
+
+void Darknet::filter_detections(const std::vector<Detection> input, std::vector<Detection>& output, std::vector<std::string> include)
+{
+    output.clear();
+
+    for (auto detection : input) {
+        for (auto label : include) {
+            if (label == detection.label) {
+                output.push_back(detection);
+            }
+        }
     }
 }

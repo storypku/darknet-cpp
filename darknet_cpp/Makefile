@@ -28,7 +28,7 @@ LDLIBS += -lboost_filesystem -lboost_system -pthread
 CXXFLAGS += -I/usr/local/cuda/include/
 LDLIBS += -L/usr/local/cuda/lib64 -lcuda -lcuda -lcudart -lcublas -lcurand
 
-test: test.o detector.o image_overlay.o image.o
+test: test.o detector.o utils.o image.o
 
 clean:
 	rm -rf test *.o
