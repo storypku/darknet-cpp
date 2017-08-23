@@ -29,7 +29,7 @@ public:
     bool setup(std::string data_cfg_file,
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
-                float nms, int max_classes);
+                float nms);
 
     /*
      *  Run the network on a given input image
@@ -65,7 +65,6 @@ private:
     network m_net;
     layer   m_l;
     float   m_nms;
-    int     m_maxClasses;
     int     m_threshold;
     std::vector<Detection> m_detections;
 

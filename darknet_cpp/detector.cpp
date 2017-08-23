@@ -17,7 +17,6 @@ Detector::Detector() :
     m_l({}),
     m_net({}),
     m_nms(0),
-    m_maxClasses(0),
     m_threshold(0),
     m_bSetup(false)
 {
@@ -40,7 +39,7 @@ Detector::~Detector()
 bool Detector::setup(std::string data_cfg_file,
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
-                float nms, int max_classes)
+                float nms)
 {
     char nameField[] = "names";
     char defaultName[] = "data/names.list";
@@ -80,7 +79,6 @@ bool Detector::setup(std::string data_cfg_file,
 
     m_bSetup = false;
     m_nms = nms;
-    m_maxClasses = max_classes;
 
     m_net = parse_network_cfg(net_cfg_file.c_str());
     DPRINTF("Setup: net.n = %d\n", m_net.n);
@@ -91,12 +89,6 @@ bool Detector::setup(std::string data_cfg_file,
     set_batch_network(&m_net, 1);
     m_l = m_net.layers[m_net.n-1];
     DPRINTF("Setup: layers = %d, %d, %d\n", m_l.w, m_l.h, m_l.n);
-
-    // Class limiter
-    if(m_l.classes > m_maxClasses) {
-        EPRINTF("Warning: Read classes from cfg (%d) > maxClasses (%d)\n", m_l.classes, m_maxClasses);
-        //return false;
-    }
 
     DPRINTF("Image expected w,h = [%d][%d]!\n", m_net.w, m_net.h);
 

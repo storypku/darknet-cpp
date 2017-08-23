@@ -16,10 +16,19 @@
 
 using namespace cv;
 
-#define GST_CAPTURE_STRING      "nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720,format=(string)I420, " \
-                                "framerate=(fraction)30/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink"
-#define GST_OUTPUT_STRING       "appsrc ! videoconvert ! video/x-raw, format=(string)BGRx ! nvvidconv ! video/x-raw(memory:NVMM), format=(string)I420 ! " \
-                                "omxh264enc ! video/x-h264, stream-format=byte-stream ! rtph264pay ! udpsink host=10.66.24.128 port=8554 sync=false async=false "
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#define DETECTION_THRESHOLD         0.24
+#define DETECTION_HIER_THRESHOLD    0.5
+#define NMS_THRESHOLD               0.4
+#define TARGET_FPS                  30
+
+#define GST_CAPTURE_STRING          "nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720,format=(string)I420, " \
+                                    "framerate=(fraction)" STR(TARGET_FPS) "/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink"
+#define GST_OUTPUT_STRING_START     "appsrc ! videoconvert ! video/x-raw, format=(string)BGRx ! nvvidconv ! video/x-raw(memory:NVMM), format=(string)I420 ! " \
+                                    "omxh264enc ! video/x-h264, stream-format=byte-stream ! rtph264pay ! udpsink host="
+#define GST_OUTPUT_STRING_END       " sync=false async=false "
 
 static Darknet::Detector g_detector;
 static Darknet::Image g_dnimage_detection;
@@ -27,7 +36,7 @@ static bool g_detector_busy;
 
 static bool detect_in_image(void)
 {
-    if (!g_detector.detect(g_dnimage_detection, 0.24, 0.5)) {
+    if (!g_detector.detect(g_dnimage_detection, DETECTION_THRESHOLD, DETECTION_HIER_THRESHOLD)) {
         std::cerr << "Failed to run detector" << std::endl;
         return false;
     }
@@ -64,14 +73,15 @@ int main(int argc, char *argv[])
     std::thread detector_thread;
     std::vector<std::string> detection_filter( {"person"} );
 
-    if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <input_data_file> <input_cfg_file> <input_weights_file>" << std::endl;
+    if (argc < 5) {
+        std::cerr << "Usage: " << argv[0] << " <input_data_file> <input_cfg_file> <input_weights_file> <ip_addr_destination>" << std::endl;
         return -1;
     }
 
     std::string input_data_file(argv[1]);
     std::string input_cfg_file(argv[2]);
     std::string input_weights_file(argv[3]);
+    std::string ip_addr_dest(argv[4]);
 
     if (!cap.open(GST_CAPTURE_STRING)) {
         std::cerr << "Could not open video input stream" << std::endl;
@@ -83,13 +93,12 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    //TODO put '30' and other constants in defines
-    if (!writer.open(GST_OUTPUT_STRING, 0, 30, cvimage.size())) {
+    if (!writer.open(GST_OUTPUT_STRING_START + ip_addr_dest + GST_OUTPUT_STRING_END, 0, TARGET_FPS, cvimage.size())) {
         std::cerr << "Could not open video output stream" << std::endl;
         return -1;
     }
 
-    if (!g_detector.setup(input_data_file, input_cfg_file, input_weights_file, 0.4, 2)) {
+    if (!g_detector.setup(input_data_file, input_cfg_file, input_weights_file, NMS_THRESHOLD)) {
         std::cerr << "Setup failed" << std::endl;
         return -1;
     }
