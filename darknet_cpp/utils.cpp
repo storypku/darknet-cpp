@@ -9,6 +9,8 @@ using namespace Darknet;
 
 void Darknet::image_overlay(const std::vector<Detection> detections, cv::Mat& image)
 {
+    const int text_origin_offset_x = 10;
+    const int text_origin_offset_y = -10;
     const std::vector<cv::Scalar> colors(  {cv::Scalar(255,0,255),
                                             cv::Scalar(255,0,0),
                                             cv::Scalar(255,255,0),
@@ -21,15 +23,15 @@ void Darknet::image_overlay(const std::vector<Detection> detections, cv::Mat& im
                                 image.rows * (detection.y - (detection.height / 2)));
         cv::Point right_bottom( image.cols * (detection.x + (detection.width / 2)),
                                 image.rows * (detection.y + (detection.height / 2)));
-        cv::Point text_orig(    image.cols * (detection.x - (detection.width / 2)) + 10,
-                                image.rows * (detection.y + (detection.height / 2)) - 10);
+        cv::Point text_orig(    left_top.x + text_origin_offset_x,
+                                right_bottom.y + text_origin_offset_y);
 
         if (left_top.x < 0) left_top.x = 0;
         if (left_top.y < 0) left_top.y = 0;
         if (right_bottom.x > image.cols) right_bottom.x = image.cols - 1;
         if (right_bottom.y > image.rows) right_bottom.y = image.rows - 1;
-        if (text_orig.x < 0) text_orig.x = 10;
-        if (text_orig.y > image.rows) text_orig.y = image.rows - 10;
+        if (text_orig.x < text_origin_offset_x) text_orig.x = text_origin_offset_x;
+        if (text_orig.y > image.rows + text_origin_offset_y) text_orig.y = image.rows + text_origin_offset_y;
 
         int thickness = image.rows * 0.012;
         cv::Scalar color(colors[detection.label_index % 6]);
