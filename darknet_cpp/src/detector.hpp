@@ -7,8 +7,6 @@
 #define DETECTOR_HPP
 
 #include <string>
-#include <opencv2/opencv.hpp>
-
 #include "darknet.h"
 #include "image.hpp"
 #include "detection.hpp"
@@ -33,6 +31,7 @@ public:
 
     /*
      *  Cleanup
+     *  NOTE: this is also called from the destructor
      */
     void release();
 
@@ -56,7 +55,8 @@ public:
     bool get_detections(std::vector<Detection>& detections);
 
     /*
-     *  Detector network input dimensions
+     *  Get detector network input dimensions when setup has already constructed
+     *  the network
      */
     int get_width();
     int get_height();

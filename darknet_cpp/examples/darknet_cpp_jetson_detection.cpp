@@ -1,6 +1,6 @@
 /*
- *  Author: EAVISE
- *  Description: Demo for cpp API
+ *  Author: Maarten Vandersteegen EAVISE
+ *  Description: Jetson detection and restreaming demo
  */
 
 #include "darknet.hpp"
