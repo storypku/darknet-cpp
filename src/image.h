@@ -11,11 +11,6 @@
 
 #ifndef __cplusplus
 #ifdef OPENCV
-#include "frame_grabber.h"
-
-image get_image_from_grabber(struct FrameGrabber *grabber);
-int fill_image_from_grabber(struct FrameGrabber *grabber, image im);
-image get_image_from_stream(CvCapture *cap);
 int fill_image_from_stream(CvCapture *cap, image im);
 image ipl_to_image(IplImage* src);
 void ipl_into_image(IplImage* src, image im);

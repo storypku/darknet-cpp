@@ -233,7 +233,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
-                char label_prob[20];
+		char label_prob[20];
                 sprintf(label_prob, "-%.0f%%", prob*100);
                 char* label_text = (char *) malloc(1 + strlen(names[class]) + strlen(label_prob) );;
                 strcpy(label_text, names[class]);
@@ -241,7 +241,6 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
                 image label = get_label(alphabet, label_text, (im.h*.03)/10);
                 draw_label(im, top + width, left, label, rgb);
                 free_image(label);
-                free(label_text);
             }
         }
     }
@@ -460,7 +459,7 @@ void show_image_cv(image p, const char *name, IplImage *disp)
     sprintf(buff, "%s", name);
 
     int step = disp->widthStep;
-    cvNamedWindow(buff, CV_WINDOW_AUTOSIZE); 
+    cvNamedWindow(buff, CV_WINDOW_NORMAL); 
     //cvMoveWindow(buff, 100*(windows%10) + 200*(windows/10), 100*(windows%10));
     ++windows;
     for(y = 0; y < p.h; ++y){
@@ -491,13 +490,9 @@ void show_image_cv(image p, const char *name, IplImage *disp)
         const char* output_name = "demo_output.avi";
         output_video = cvCreateVideoWriter(output_name, CV_FOURCC('M', 'J', 'P', 'G'), 25, size, 1);
     }
-
     cvWriteFrame(output_video, disp);
 
-    IplImage *dispsmall = cvCreateImage(cvSize(320, 240), IPL_DEPTH_8U, p.c);
-    cvResize(disp, dispsmall, CV_INTER_LINEAR);
-    cvShowImage(buff, dispsmall);
-    cvReleaseImage(&dispsmall);
+    cvShowImage(buff, disp);
 }
 #endif
 
@@ -583,26 +578,6 @@ void flush_stream_buffer(CvCapture *cap, int n)
     for(i = 0; i < n; ++i) {
         cvQueryFrame(cap);
     }
-}
-
-image get_image_from_grabber(struct FrameGrabber *grabber)
-{
-    IplImage* src = frame_grabber_grab(grabber);
-    if (!src) return make_empty_image(0,0,0);
-    image im = ipl_to_image(src);
-    cvReleaseImage(&src);
-    rgbgr_image(im);
-    return im;
-}
-
-int fill_image_from_grabber(struct FrameGrabber *grabber, image im)
-{
-    IplImage* src = frame_grabber_grab(grabber);
-    if (!src) return 0;
-    ipl_into_image(src, im);
-    cvReleaseImage(&src);
-    rgbgr_image(im);
-    return 1;
 }
 
 image get_image_from_stream(CvCapture *cap)
