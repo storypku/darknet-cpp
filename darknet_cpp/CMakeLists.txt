@@ -12,6 +12,7 @@ include(build_type)
 # flags and parameters
 set (GPU true CACHE BOOL "Use CUDA")
 set (CUDNN true CACHE BOOL "Use libcudnn")
+set (ADDRESS_SANITIZER false CACHE BOOL "Enable address sanitizer. NOTE: only works in 'Debug' mode")
 set(default_build_type "Release")
 
 # print the build type
@@ -24,8 +25,10 @@ set (DARKNET_ROOT "${darknet_cpp_SOURCE_DIR}/../")
 set (CMAKE_CXX_FLAGS "-Wall -Wextra")
 
 # address sanitizer in debug mode
-set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_STATIC_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+if (ADDRESS_SANITIZER)
+    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+    set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_STATIC_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+endif()
 
 # GPU specifics
 set (GPU_LIBS "")
