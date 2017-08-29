@@ -14,8 +14,6 @@
 #include <mutex>
 #include <boost/filesystem.hpp>
 
-using namespace cv;
-
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
@@ -114,6 +112,7 @@ int main(int argc, char *argv[])
 
         // resize to match detector input dimensions
         cv::resize(cvimage, cvimage_detection, detector_input_size);
+
         // convert opencv image to darknet image
         dnimage_detection.set(cvimage_detection);
 

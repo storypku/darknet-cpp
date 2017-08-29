@@ -5,7 +5,7 @@ include_directories ("${DARKNET_ROOT}/include")
 
 set (HEADERS
     ${DARKNET_ROOT}/include/darknet.h
-    darknet.hpp 
+    darknet.hpp
     detection.hpp
     detector.hpp
     image.hpp
@@ -21,10 +21,15 @@ set (SOURCES
 
 set (SRC ${SOURCES} ${HEADERS})
 
+set (DEBUG_STR "0")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set (DEBUG_STR "1")
+endif()
+
 # original darknet library
 add_custom_target (
     darknet
-    COMMAND make
+    COMMAND make GPU=${GPU_STR} CUDNN=${CUDNN_STR} OPENCV=0 DEBUG=${DEBUG_STR}
     WORKING_DIRECTORY ${DARKNET_ROOT}
 )
 
@@ -35,6 +40,7 @@ add_dependencies (darknet_cpp darknet)
 target_link_libraries (darknet_cpp
     "-lboost_filesystem -lboost_system"
     ${DARKNET_ROOT}/libdarknet.a
+    "-pthread"
     ${OpenCV_LIBS}
     ${GPU_LIBS}
 )
