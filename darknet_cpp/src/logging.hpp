@@ -7,11 +7,11 @@
 #define LOGGING_HPP
 
 #ifdef DEBUG
-#define DPRINTF printf
-#define EPRINTF printf
+#define DPRINTF(fmt, ...)   printf("%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, ## __VA_ARGS__);
+#define EPRINTF(fmt, ...)   fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, ## __VA_ARGS__);
 #else
-#define DPRINTF
-#define EPRINTF printf
+#define DPRINTF(...)
+#define EPRINTF(fmt, ...)   fprintf(stderr, fmt, ## __VA_ARGS__);
 #endif
 
 #endif /* LOGGING_HPP */

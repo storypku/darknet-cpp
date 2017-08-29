@@ -11,14 +11,15 @@
 using namespace Darknet;
 
 Detector::Detector() :
-    m_boxes(0),
-    m_probs(0),
-    m_classNames(0),
-    m_l({}),
+    m_boxes(nullptr),
+    m_classNames(nullptr),
+    m_probs(nullptr),
+    m_bSetup(false),
     m_net({}),
+    m_l({}),
     m_nms(0),
     m_threshold(0),
-    m_bSetup(false)
+    m_detections()
 {
 }
 
