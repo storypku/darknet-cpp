@@ -7,7 +7,6 @@
 #define DETECTOR_HPP
 
 #include <string>
-#include "darknet.h"
 #include "image.hpp"
 #include "detection.hpp"
 
@@ -28,12 +27,6 @@ public:
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
                 float nms);
-
-    /*
-     *  Cleanup
-     *  NOTE: this is also called from the destructor
-     */
-    void release();
 
     /*
      *  Run the network on a given input image
@@ -63,16 +56,9 @@ public:
 
 private:
 
-    box     *m_boxes;
-    char    **m_classNames;
-    float   **m_probs;
-    bool    m_bSetup;
-    network m_net;
-    layer   m_l;
-    float   m_nms;
-    int     m_threshold;
-    std::vector<Detection> m_detections;
-
+    /* Pimpl idiom: hide original implementation from this api */
+    class   impl;
+    std::unique_ptr<impl> pimpl;
 };
 
 } /* namespace Darknet */

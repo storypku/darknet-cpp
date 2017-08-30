@@ -1,34 +1,82 @@
 /*
  *  Author: EAVISE
- *  Description: C++ API for darknet framework.
- *  It currently only supports inference detection
+ *  Description: Detector API implementation
  */
 
 #include "detector.hpp"
 #include "logging.hpp"
+#include "darknet.h"    /* original darknet !!! */
 #include <boost/filesystem.hpp>
+#include <memory>
 
 using namespace Darknet;
 
-Detector::Detector() :
-    m_boxes(nullptr),
-    m_classNames(nullptr),
-    m_probs(nullptr),
-    m_bSetup(false),
-    m_net({}),
-    m_l({}),
-    m_nms(0),
-    m_threshold(0),
-    m_detections()
+class Detector::impl
 {
-}
+public:
+    impl();
+    ~impl();
+    bool setup(std::string data_cfg_file,
+                std::string net_cfg_file,
+                std::string weight_cfg_file,
+                float nms);
+    void release();
+    bool detect(const Image & image,
+                float thresh,
+                float hier_thresh);
+    bool get_detections(std::vector<Detection>& detections);
+    int get_width();
+    int get_height();
 
-Detector::~Detector()
+private:
+    box     *m_boxes;
+    char    **m_classNames;
+    float   **m_probs;
+    bool    m_bSetup;
+    network m_net;
+    layer   m_l;
+    float   m_nms;
+    int     m_threshold;
+    std::vector<Detection> m_detections;
+};
+
+/*
+ *  Implementations
+ */
+
+Detector::impl::impl() :
+        m_boxes(nullptr),
+        m_classNames(nullptr),
+        m_probs(nullptr),
+        m_bSetup(false),
+        m_net({}),
+        m_l({}),
+        m_nms(0),
+        m_threshold(0),
+        m_detections()  {}
+
+Detector::impl::~impl()
 {
     release();
 }
 
-bool Detector::setup(std::string data_cfg_file,
+void Detector::impl::release()
+{
+    // TODO - Massive cleanup here
+
+    m_bSetup = false;
+
+    if(m_boxes)
+        free(m_boxes);
+    if(m_probs)
+        free_ptrs((void **)m_probs, m_l.w*m_l.h*m_l.n);
+    if(m_classNames)
+    {
+        //todo
+    }
+}
+
+bool Detector::impl::setup(std::string data_cfg_file,
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
                 float nms)
@@ -103,23 +151,7 @@ bool Detector::setup(std::string data_cfg_file,
     return true;
 }
 
-void Detector::release()
-{
-    // TODO - Massive cleanup here
-
-    m_bSetup = false;
-
-    if(m_boxes)
-        free(m_boxes);
-    if(m_probs)
-        free_ptrs((void **)m_probs, m_l.w*m_l.h*m_l.n);
-    if(m_classNames)
-    {
-        //todo
-    }
-}
-
-bool Detector::detect(
+bool Detector::impl::detect(
             const Image & image,
             float thresh,
             float hier_thresh)
@@ -170,7 +202,7 @@ bool Detector::detect(
     return true;
 }
 
-bool Detector::get_detections(std::vector<Detection>& detections)
+bool Detector::impl::get_detections(std::vector<Detection>& detections)
 {
     if (!m_bSetup)
         return false;
@@ -180,7 +212,7 @@ bool Detector::get_detections(std::vector<Detection>& detections)
     return true;
 }
 
-int Detector::get_width()
+int Detector::impl::get_width()
 {
     if (!m_bSetup)
         return 0;
@@ -188,10 +220,53 @@ int Detector::get_width()
     return m_net.w;
 }
 
-int Detector::get_height()
+int Detector::impl::get_height()
 {
     if (!m_bSetup)
         return 0;
 
     return m_net.h;
+}
+
+/*
+ *  Wrappers
+ */
+
+Detector::Detector() :
+    pimpl{ new Detector::impl() }
+{
+}
+
+/* needed for use of unique_ptr and incomplete type definitions */
+Detector::~Detector() = default;
+
+bool Detector::setup(std::string data_cfg_file,
+                std::string net_cfg_file,
+                std::string weight_cfg_file,
+                float nms)
+{
+    return pimpl->setup(data_cfg_file, net_cfg_file, weight_cfg_file, nms);
+}
+
+bool Detector::detect(
+            const Image & image,
+            float thresh,
+            float hier_thresh)
+{
+    return pimpl->detect(image, thresh, hier_thresh);
+}
+
+bool Detector::get_detections(std::vector<Detection>& detections)
+{
+    return pimpl->get_detections(detections);
+}
+
+int Detector::get_width()
+{
+    return pimpl->get_width();
+}
+
+int Detector::get_height()
+{
+    return pimpl->get_height();
 }

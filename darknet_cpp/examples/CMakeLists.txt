@@ -1,4 +1,5 @@
 include_directories ("${DARKNET_ROOT}/include")
+include_directories (${CUDA_INCLUDE_DIRS})
 include_directories (${darknet_cpp_SOURCE_DIR}/src)
 link_directories (${darknet_cpp_SOURCE_DIR}/src)
 
@@ -12,7 +13,10 @@ target_link_libraries(darknet_cpp_jetson_detection
     ${DARKNET_ROOT}/libdarknet.a
     "-lpthread"
     ${OpenCV_LIBS}
-    ${GPU_LIBS}
+    ${CUDA_LIBRARIES}
+    ${CUDA_CUBLAS_LIBRARIES}
+    ${CUDA_curand_LIBRARY}
+    ${CUDNN_LIBS}
 )
 add_dependencies (darknet_cpp_jetson_detection darknet)
 
@@ -22,6 +26,9 @@ target_link_libraries(darknet_cpp_detection
     ${DARKNET_ROOT}/libdarknet.a
     "-lpthread"
     ${OpenCV_LIBS}
-    ${GPU_LIBS}
+    ${CUDA_LIBRARIES}
+    ${CUDA_CUBLAS_LIBRARIES}
+    ${CUDA_curand_LIBRARY}
+    ${CUDNN_LIBS}
 )
 add_dependencies (darknet_cpp_detection darknet)

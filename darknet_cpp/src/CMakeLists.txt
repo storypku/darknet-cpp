@@ -1,10 +1,8 @@
-include (${CMAKE_ROOT}/Modules/ExternalProject.cmake)
-
 include_directories (${OpenCV_INCLUDE_DIRS})
+include_directories (${CUDA_INCLUDE_DIRS})
 include_directories ("${DARKNET_ROOT}/include")
 
 set (HEADERS
-    ${DARKNET_ROOT}/include/darknet.h
     darknet.hpp
     detection.hpp
     detector.hpp
@@ -27,10 +25,19 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 # original darknet library
+# this target is always out of date, but since the darknet makefile already handles
+# 'out of date', this will work as expected
 add_custom_target (
     darknet
-    COMMAND make GPU=${GPU_STR} CUDNN=${CUDNN_STR} OPENCV=0 DEBUG=${DEBUG_STR}
+    COMMAND make GPU=${GPU_STR} CUDNN=${CUDNN_STR} OPENCV=0 DEBUG=${DEBUG_STR} obj libdarknet.a
     WORKING_DIRECTORY ${DARKNET_ROOT}
+)
+
+# clean target for both darknet and darknet_cpp
+add_custom_target (
+    cleanall
+    COMMAND ${CMAKE_MAKE_PROGRAM} clean
+    COMMAND make -C ${DARKNET_ROOT} clean
 )
 
 add_library (darknet_cpp_static STATIC ${SRC})
@@ -42,7 +49,10 @@ target_link_libraries (darknet_cpp
     ${DARKNET_ROOT}/libdarknet.a
     "-pthread"
     ${OpenCV_LIBS}
-    ${GPU_LIBS}
+    ${CUDA_LIBRARIES}
+    ${CUDA_CUBLAS_LIBRARIES}
+    ${CUDA_curand_LIBRARY}
+    ${CUDNN_LIBS}
 )
 
 # install library target and header files
