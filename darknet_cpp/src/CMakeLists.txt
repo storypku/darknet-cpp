@@ -29,7 +29,7 @@ endif()
 # 'out of date', this will work as expected
 add_custom_target (
     darknet
-    COMMAND make GPU=${GPU_STR} CUDNN=${CUDNN_STR} OPENCV=0 DEBUG=${DEBUG_STR} obj libdarknet.a
+    COMMAND make GPU=${WITH_GPU_STR} CUDNN=${WITH_CUDNN_STR} OPENCV=0 DEBUG=${DEBUG_STR} obj libdarknet.a
     WORKING_DIRECTORY ${DARKNET_ROOT}
 )
 

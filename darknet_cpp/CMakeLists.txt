@@ -10,9 +10,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include(build_type)
 
 # flags and parameters
-set (GPU true CACHE BOOL "Use CUDA")
-set (CUDNN true CACHE BOOL "Use libcudnn")
-set (ADDRESS_SANITIZER false CACHE BOOL "Enable address sanitizer. NOTE: only works without cuda/cudnn")
+set (WITH_GPU true CACHE BOOL "Use CUDA")
+set (WITH_CUDNN true CACHE BOOL "Use libcudnn")
+set (WITH_ADDRESS_SANITIZER false CACHE BOOL "Enable address sanitizer. NOTE: only works without cuda/cudnn")
 set (default_build_type "Release")
 
 # print the build type
@@ -25,23 +25,23 @@ set (DARKNET_ROOT "${darknet_cpp_SOURCE_DIR}/../")
 set (CMAKE_CXX_FLAGS "-Wall -Wextra")
 
 # address sanitizer
-if (ADDRESS_SANITIZER)
+if (WITH_ADDRESS_SANITIZER)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
     set (CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
 endif()
 
 # GPU specifics
-set (GPU_STR "0")
-if (${GPU})
-    set (GPU_STR "1")
+set (WITH_GPU_STR "0")
+if (${WITH_GPU})
+    set (WITH_GPU_STR "1")
     add_definitions(-DGPU)
     find_package(CUDA REQUIRED)
 endif()
 
 set (CUDNN_LIBS "")
-set (CUDNN_STR "0")
-if (${CUDNN})
-    set (CUDNN_STR "1")
+set (WITH_CUDNN_STR "0")
+if (${WITH_CUDNN})
+    set (WITH_CUDNN_STR "1")
     add_definitions(-DCUDNN)
     set (CUDNN_LIBS "-lcudnn")
 endif()
