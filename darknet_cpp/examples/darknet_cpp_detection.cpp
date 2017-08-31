@@ -7,6 +7,7 @@
 
 #include "opencv2/highgui/highgui.hpp"
 #include <string>
+#include <chrono>
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
@@ -14,7 +15,6 @@
 #define DETECTION_THRESHOLD         0.24
 #define DETECTION_HIER_THRESHOLD    0.5
 #define NMS_THRESHOLD               0.4
-#define TARGET_FPS                  30
 
 int main(int argc, char *argv[])
 {
@@ -38,11 +38,19 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (!detector.setup(input_data_file, input_cfg_file, input_weights_file, NMS_THRESHOLD)) {
+    if (!detector.setup(input_data_file,
+                        input_cfg_file,
+                        input_weights_file,
+                        NMS_THRESHOLD,
+                        DETECTION_THRESHOLD,
+                        DETECTION_HIER_THRESHOLD,
+                        cap.get(CV_CAP_PROP_FRAME_WIDTH),
+                        cap.get(CV_CAP_PROP_FRAME_HEIGHT))) {
         std::cerr << "Setup failed" << std::endl;
         return -1;
     }
 
+    auto prevTime = std::chrono::system_clock::now();
     cv::Size detector_input_size(detector.get_width(), detector.get_height());
 
     while(1) {
@@ -52,14 +60,14 @@ int main(int argc, char *argv[])
             return false;
         }
 
-        // resize to match detector input dimensions
+        // resize image to match detector input dimensions
         cv::resize(cvimage, cvimage_detection, detector_input_size);
 
         // convert opencv image to darknet image
         dnimage_detection.set(cvimage_detection);
 
         // run detector
-        if (!detector.detect(dnimage_detection, DETECTION_THRESHOLD, DETECTION_HIER_THRESHOLD)) {
+        if (!detector.detect(dnimage_detection)) {
             std::cerr << "Failed to run detector" << std::endl;
             return false;
         }
@@ -68,6 +76,11 @@ int main(int argc, char *argv[])
 
         // draw bounding boxes
         Darknet::image_overlay(detections, cvimage);
+
+        auto now = std::chrono::system_clock::now();
+        std::chrono::duration<double> period = (now - prevTime);
+        prevTime = now;
+        std::cout << "FPS: " << 1 / period.count() << std::endl;
 
         cv::imshow("Overlay", cvimage);
         cv::waitKey(1);

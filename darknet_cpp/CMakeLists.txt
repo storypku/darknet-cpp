@@ -25,9 +25,11 @@ set (DARKNET_ROOT "${darknet_cpp_SOURCE_DIR}/../")
 set (CMAKE_CXX_FLAGS "-Wall -Wextra")
 
 # address sanitizer
+set (WITH_ADDRESS_SANITIZER_STR "0")
 if (WITH_ADDRESS_SANITIZER)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
     set (CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=address")
+    set (WITH_ADDRESS_SANITIZER_STR "1")
 endif()
 
 # GPU specifics

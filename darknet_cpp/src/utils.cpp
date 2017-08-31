@@ -11,18 +11,20 @@ void Darknet::image_overlay(const std::vector<Detection> detections, cv::Mat& im
 {
     const int text_origin_offset_x = 10;
     const int text_origin_offset_y = -10;
+    // TODO: provide more colors
     const std::vector<cv::Scalar> colors(  {cv::Scalar(255,0,255),
                                             cv::Scalar(255,0,0),
                                             cv::Scalar(255,255,0),
                                             cv::Scalar(0,255,0),
                                             cv::Scalar(0,255,255),
                                             cv::Scalar(0,0,255)} );
+    int number_of_colors = colors.size();
 
     for (auto detection : detections) {
-        cv::Point left_top(     image.cols * (detection.x - (detection.width / 2)),
-                                image.rows * (detection.y - (detection.height / 2)));
-        cv::Point right_bottom( image.cols * (detection.x + (detection.width / 2)),
-                                image.rows * (detection.y + (detection.height / 2)));
+        cv::Point left_top(     detection.x - (detection.width / 2),
+                                detection.y - (detection.height / 2));
+        cv::Point right_bottom( detection.x + (detection.width / 2),
+                                detection.y + (detection.height / 2));
         cv::Point text_orig(    left_top.x + text_origin_offset_x,
                                 right_bottom.y + text_origin_offset_y);
 
@@ -34,7 +36,7 @@ void Darknet::image_overlay(const std::vector<Detection> detections, cv::Mat& im
         if (text_orig.y > image.rows + text_origin_offset_y) text_orig.y = image.rows + text_origin_offset_y;
 
         int thickness = image.rows * 0.012;
-        cv::Scalar color(colors[detection.label_index % 6]);
+        cv::Scalar color(colors[detection.label_index % number_of_colors]);
         std::string text(std::to_string(static_cast<int>((detection.probability * 100))) + "% " + detection.label);
 
         cv::rectangle(image, left_top, right_bottom, color, thickness);

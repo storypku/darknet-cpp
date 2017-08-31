@@ -15,8 +15,7 @@ namespace Darknet
      *  Render detection bouding boxes on a given input image
      *  detections: list of detections
      *  image:      image to use to overlay the detections
-     *  NOTE:       assumes the aspect ratio of 'image' is the same as the aspect ratio of the detector.
-     *              If not, the bounding boxes will not be displayed correctly.
+     *  NOTE:       assumes the width/height of the image match the width/height dimensions of the detections
      */
     void image_overlay(const std::vector<Detection> detections, cv::Mat& image);
 

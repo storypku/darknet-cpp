@@ -5,11 +5,15 @@
 
 #include "detector.hpp"
 #include "logging.hpp"
-#include "darknet.h"    /* original darknet !!! */
+#include "darknet.h"                /* original darknet !!! */
 #include <boost/filesystem.hpp>
 #include <memory>
 
 using namespace Darknet;
+
+/*
+ *  Implementation class, see header for method descriptions
+ */
 
 class Detector::impl
 {
@@ -19,11 +23,13 @@ public:
     bool setup(std::string data_cfg_file,
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
-                float nms);
-    void release();
-    bool detect(const Image & image,
+                float nms,
                 float thresh,
-                float hier_thresh);
+                float hier_thresh,
+                int output_width,
+                int output_height);
+    void release();
+    bool detect(const Image & image);
     bool get_detections(std::vector<Detection>& detections);
     int get_width();
     int get_height();
@@ -36,8 +42,10 @@ private:
     network m_net;
     layer   m_l;
     float   m_nms;
-    int     m_threshold;
-    std::vector<Detection> m_detections;
+    float   m_threshold;
+    float   m_hier_threshold;
+    int     m_output_width;
+    int     m_output_height;
 };
 
 /*
@@ -53,7 +61,9 @@ Detector::impl::impl() :
         m_l({}),
         m_nms(0),
         m_threshold(0),
-        m_detections()  {}
+        m_hier_threshold(0),
+        m_output_width(0),
+        m_output_height(0) {}
 
 Detector::impl::~impl()
 {
@@ -66,26 +76,33 @@ void Detector::impl::release()
 
     m_bSetup = false;
 
-    if(m_boxes)
+    if (m_boxes)
         free(m_boxes);
-    if(m_probs)
+    if (m_probs)
         free_ptrs((void **)m_probs, m_l.w*m_l.h*m_l.n);
-    if(m_classNames)
-    {
-        //todo
+    if (m_classNames) {
+        //TODO
     }
 }
 
 bool Detector::impl::setup(std::string data_cfg_file,
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
-                float nms)
+                float nms,
+                float thresh,
+                float hier_thresh,
+                int output_width,
+                int output_height)
 {
     int j;
     char nameField[] = "names";
     char defaultName[] = "data/names.list";
 
     m_nms = nms;
+    m_threshold = thresh;
+    m_hier_threshold = hier_thresh;
+    m_output_width = output_width;
+    m_output_height = output_height;
 
     if (!boost::filesystem::exists(data_cfg_file)) {
         DPRINTF("Data config file %s not found\n", data_cfg_file.c_str());
@@ -126,7 +143,14 @@ bool Detector::impl::setup(std::string data_cfg_file,
     m_l = m_net.layers[m_net.n-1];
     DPRINTF("Setup: layers = %d, %d, %d\n", m_l.w, m_l.h, m_l.n);
 
+    if (m_output_width == 0 && m_output_height == 0) {
+        DPRINTF("No detections output widht/height provided, using network dimensions\n");
+        m_output_width = m_net.w;
+        m_output_height = m_net.h;
+    }
+
     DPRINTF("Image expected w,h = [%d][%d]!\n", m_net.w, m_net.h);
+    DPRINTF("Detection coordinates will be given within the following range w,h = [%d][%d]!\n", m_output_width, m_output_height);
 
     m_boxes = (box *)calloc(m_l.w * m_l.h * m_l.n, sizeof(box));
     m_probs = (float **)calloc(m_l.w * m_l.h * m_l.n, sizeof(float *));
@@ -151,15 +175,8 @@ bool Detector::impl::setup(std::string data_cfg_file,
     return true;
 }
 
-bool Detector::impl::detect(
-            const Image & image,
-            float thresh,
-            float hier_thresh)
+bool Detector::impl::detect(const Image & image)
 {
-    int i;
-
-    m_threshold = thresh;
-
     if (!m_bSetup) {
         EPRINTF("Not Setup!\n");
         return false;
@@ -174,14 +191,25 @@ bool Detector::impl::detect(
 
     // Predict
     (void) network_predict(m_net, image.data);
-    get_region_boxes(m_l, m_net.w, m_net.h, m_net.w, m_net.h, thresh, m_probs, m_boxes, 0, 0, hier_thresh, 1);
+    get_region_boxes(m_l, m_output_width, m_output_height, m_net.w, m_net.h, m_threshold,
+                        m_probs, m_boxes, 0, 0, m_hier_threshold, 0);
 
     // Apply non maxima suppression
     DPRINTF("m_l.softmax_tree = %p, nms = %f\n", m_l.softmax_tree, m_nms);
-    do_nms_sort(m_boxes, m_probs, m_l.w * m_l.h * m_l.n, m_l.classes, m_nms);
+    do_nms_obj(m_boxes, m_probs, m_l.w * m_l.h * m_l.n, m_l.classes, m_nms);
+
+    return true;
+}
+
+bool Detector::impl::get_detections(std::vector<Detection>& detections)
+{
+    int i;
+
+    if (!m_bSetup)
+        return false;
 
     // Extract detections in correct format
-    m_detections.clear();
+    detections.clear();
     for (i = 0; i < (m_l.w * m_l.h * m_l.n); ++i) {
         int classIndex = max_index(m_probs[i], m_l.classes);
         float prob = m_probs[i][classIndex];
@@ -195,19 +223,9 @@ bool Detector::impl::detect(
             detection.probability = prob;
             detection.label_index = classIndex;
             detection.label = m_classNames[classIndex];
-            m_detections.push_back(detection);
+            detections.push_back(detection);
         }
     }
-
-    return true;
-}
-
-bool Detector::impl::get_detections(std::vector<Detection>& detections)
-{
-    if (!m_bSetup)
-        return false;
-
-    detections = m_detections;
 
     return true;
 }
@@ -243,17 +261,19 @@ Detector::~Detector() = default;
 bool Detector::setup(std::string data_cfg_file,
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
-                float nms)
+                float nms,
+                float thresh,
+                float hier_thresh,
+                int output_width,
+                int output_height)
 {
-    return pimpl->setup(data_cfg_file, net_cfg_file, weight_cfg_file, nms);
+    return pimpl->setup(data_cfg_file, net_cfg_file, weight_cfg_file, nms,
+                            thresh, hier_thresh, output_width, output_height);
 }
 
-bool Detector::detect(
-            const Image & image,
-            float thresh,
-            float hier_thresh)
+bool Detector::detect(const Image & image)
 {
-    return pimpl->detect(image, thresh, hier_thresh);
+    return pimpl->detect(image);
 }
 
 bool Detector::get_detections(std::vector<Detection>& detections)

@@ -7,7 +7,6 @@
 
 #include "opencv2/core/core.hpp"
 #include <opencv2/imgproc.hpp>
-#include "opencv2/highgui/highgui.hpp"
 #include <string>
 #include <chrono>
 #include <thread>
@@ -34,7 +33,7 @@ static bool g_detector_busy;
 
 static bool detect_in_image(void)
 {
-    if (!g_detector.detect(g_dnimage_detection, DETECTION_THRESHOLD, DETECTION_HIER_THRESHOLD)) {
+    if (!g_detector.detect(g_dnimage_detection)) {
         std::cerr << "Failed to run detector" << std::endl;
         return false;
     }
@@ -96,7 +95,14 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if (!g_detector.setup(input_data_file, input_cfg_file, input_weights_file, NMS_THRESHOLD)) {
+    if (!g_detector.setup(input_data_file,
+                        input_cfg_file,
+                        input_weights_file,
+                        NMS_THRESHOLD,
+                        DETECTION_THRESHOLD,
+                        DETECTION_HIER_THRESHOLD,
+                        cap.get(CV_CAP_PROP_FRAME_WIDTH),
+                        cap.get(CV_CAP_PROP_FRAME_HEIGHT))) {
         std::cerr << "Setup failed" << std::endl;
         return -1;
     }
@@ -110,7 +116,7 @@ int main(int argc, char *argv[])
             return false;
         }
 
-        // resize to match detector input dimensions
+        // resize image to match detector input dimensions
         cv::resize(cvimage, cvimage_detection, detector_input_size);
 
         // convert opencv image to darknet image
