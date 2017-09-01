@@ -33,6 +33,7 @@ public:
     bool get_detections(std::vector<Detection>& detections);
     int get_width();
     int get_height();
+    int get_channels();
 
 private:
     box     *m_boxes;
@@ -182,6 +183,11 @@ bool Detector::impl::detect(const Image & image)
         return false;
     }
 
+    if (!image.data) {
+        EPRINTF("Image is empty\n");
+        return false;
+    }
+
     if (m_net.w != image.width || m_net.h != image.height || m_net.c != image.channels) {
         EPRINTF("Given image dimensions do not match the network size: "
                 "image dimensions: w = %d, h = %d, c = %d, network dimensions: w = %d, h = %d, c = %d\n",
@@ -246,6 +252,14 @@ int Detector::impl::get_height()
     return m_net.h;
 }
 
+int Detector::impl::get_channels()
+{
+    if (!m_bSetup)
+        return 0;
+
+    return m_net.c;
+}
+
 /*
  *  Wrappers
  */
@@ -289,4 +303,9 @@ int Detector::get_width()
 int Detector::get_height()
 {
     return pimpl->get_height();
+}
+
+int Detector::get_channels()
+{
+    return pimpl->get_channels();
 }

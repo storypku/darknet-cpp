@@ -14,32 +14,15 @@ namespace Darknet
 class Image
 {
 public:
-
-    /*
-     *  Constructors
-     */
     Image();
-    Image(cv::Mat& image);
-
-    /*
-     *  Set image content
-     *  Conversion does not resize the image, make sure the input image
-     *  has already the same size and channels as the network input layer.
-     */
-    bool set(cv::Mat& image);
 
     void operator=(const Image & image);
 
-    /*
-     *  readonly fields
-     */
-    float* data;
     int width;
     int height;
     int channels;
-
-private:
-    cv::Mat m_floatMat;
+    float* data;    /* used for reading by detector */
+    cv::Mat _data;  /* owns the image data */
 };
 
 }

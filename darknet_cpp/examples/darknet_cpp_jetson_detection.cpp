@@ -28,12 +28,12 @@
 #define GST_OUTPUT_STRING_END       " sync=false async=false "
 
 static Darknet::Detector g_detector;
-static Darknet::Image g_dnimage_detection;
+static Darknet::Image g_dnimage;
 static bool g_detector_busy;
 
 static bool detect_in_image(void)
 {
-    if (!g_detector.detect(g_dnimage_detection)) {
+    if (!g_detector.detect(g_dnimage)) {
         std::cerr << "Failed to run detector" << std::endl;
         return false;
     }
@@ -63,8 +63,9 @@ int main(int argc, char *argv[])
 {
     cv::VideoCapture cap;
     cv::VideoWriter writer;
-    cv::Mat cvimage, cvimage_detection;
-    Darknet::Image dnimage_detection;
+    cv::Mat cvimage;
+    Darknet::Image dnimage;
+    Darknet::ConvertCvBgr8 converter;
     std::vector<Darknet::Detection> latest_detections;
     std::vector<Darknet::Detection> latest_filtered_detections;
     std::thread detector_thread;
@@ -95,19 +96,22 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    int image_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
+    int image_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+
     if (!g_detector.setup(input_data_file,
                         input_cfg_file,
                         input_weights_file,
                         NMS_THRESHOLD,
                         DETECTION_THRESHOLD,
                         DETECTION_HIER_THRESHOLD,
-                        cap.get(CV_CAP_PROP_FRAME_WIDTH),
-                        cap.get(CV_CAP_PROP_FRAME_HEIGHT))) {
+                        image_width,
+                        image_height)) {
         std::cerr << "Setup failed" << std::endl;
         return -1;
     }
 
-    cv::Size detector_input_size(g_detector.get_width(), g_detector.get_height());
+    converter.setup(image_width, image_height, g_detector.get_width(), g_detector.get_height());
 
     while(1) {
 
@@ -116,11 +120,11 @@ int main(int argc, char *argv[])
             return false;
         }
 
-        // resize image to match detector input dimensions
-        cv::resize(cvimage, cvimage_detection, detector_input_size);
-
-        // convert opencv image to darknet image
-        dnimage_detection.set(cvimage_detection);
+        // convert and resize opencv image to darknet image
+        if (!converter.convert(cvimage, dnimage)) {
+            std::cerr << "Failed to convert opencv image to darknet image" << std::endl;
+            return false;
+        }
 
         // if detector thread is finished, start it again
         if (!g_detector_busy) {
@@ -128,7 +132,7 @@ int main(int argc, char *argv[])
                 detector_thread.join();
 
             g_detector.get_detections(latest_detections);
-            g_dnimage_detection = dnimage_detection;
+            g_dnimage = dnimage;
             g_detector_busy = true;
             detector_thread = std::thread(detect_in_image);
 
@@ -142,7 +146,6 @@ int main(int argc, char *argv[])
 
         // restream
         writer.write(cvimage);
-
     }
 
     return 0;

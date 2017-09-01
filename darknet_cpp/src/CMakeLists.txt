@@ -3,6 +3,8 @@ include_directories (${CUDA_INCLUDE_DIRS})
 include_directories ("${DARKNET_ROOT}/include")
 
 set (HEADERS
+    convert_cv.hpp
+    convert_cv_bgr8.hpp
     darknet.hpp
     detection.hpp
     detector.hpp
@@ -12,6 +14,7 @@ set (HEADERS
 )
 
 set (SOURCES
+    convert_cv_bgr8.cpp
     detector.cpp
     image.cpp
     utils.cpp
