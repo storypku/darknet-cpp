@@ -10,7 +10,6 @@
 #include <string>
 #include <chrono>
 #include <thread>
-#include <mutex>
 #include <boost/filesystem.hpp>
 
 #define STR_HELPER(x) #x
