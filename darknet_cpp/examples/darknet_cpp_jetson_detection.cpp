@@ -116,13 +116,13 @@ int main(int argc, char *argv[])
 
         if (!cap.read(cvimage)) {
             std::cerr << "Video capture read failed/EoF" << std::endl;
-            return false;
+            return -1;
         }
 
         // convert and resize opencv image to darknet image
         if (!converter.convert(cvimage, dnimage)) {
             std::cerr << "Failed to convert opencv image to darknet image" << std::endl;
-            return false;
+            return -1;
         }
 
         // if detector thread is finished, start it again
