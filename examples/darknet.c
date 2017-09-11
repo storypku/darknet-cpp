@@ -112,6 +112,26 @@ void operations(char *cfgfile)
             ops += 2l * l.n * l.size*l.size*l.c * l.out_h*l.out_w;
         } else if(l.type == CONNECTED){
             ops += 2l * l.inputs * l.outputs;
+        } else if (l.type == RNN){
+            ops += 2l * l.input_layer->inputs * l.input_layer->outputs;
+            ops += 2l * l.self_layer->inputs * l.self_layer->outputs;
+            ops += 2l * l.output_layer->inputs * l.output_layer->outputs;
+        } else if (l.type == GRU){
+            ops += 2l * l.uz->inputs * l.uz->outputs;
+            ops += 2l * l.uh->inputs * l.uh->outputs;
+            ops += 2l * l.ur->inputs * l.ur->outputs;
+            ops += 2l * l.wz->inputs * l.wz->outputs;
+            ops += 2l * l.wh->inputs * l.wh->outputs;
+            ops += 2l * l.wr->inputs * l.wr->outputs;
+        } else if (l.type == LSTM){
+            ops += 2l * l.uf->inputs * l.uf->outputs;
+            ops += 2l * l.ui->inputs * l.ui->outputs;
+            ops += 2l * l.ug->inputs * l.ug->outputs;
+            ops += 2l * l.uo->inputs * l.uo->outputs;
+            ops += 2l * l.wf->inputs * l.wf->outputs;
+            ops += 2l * l.wi->inputs * l.wi->outputs;
+            ops += 2l * l.wg->inputs * l.wg->outputs;
+            ops += 2l * l.wo->inputs * l.wo->outputs;
         }
     }
     printf("Floating Point Operations: %ld\n", ops);
@@ -126,7 +146,7 @@ void oneoff(char *cfgfile, char *weightfile, char *outfile)
     int c = net.layers[net.n - 2].c;
     scal_cpu(oldn*c, .1, net.layers[net.n - 2].weights, 1);
     scal_cpu(oldn, 0, net.layers[net.n - 2].biases, 1);
-    net.layers[net.n - 2].n = 9418;
+    net.layers[net.n - 2].n = 11921;
     net.layers[net.n - 2].biases += 5;
     net.layers[net.n - 2].weights += 5*c;
     if(weightfile){
@@ -317,7 +337,7 @@ void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
     int i;
     for (i = 0; i < net.n; ++i) {
         layer l = net.layers[i];
-        if (l.type == CONVOLUTIONAL && l.batch_normalize) {
+        if ((l.type == DECONVOLUTIONAL || l.type == CONVOLUTIONAL) && l.batch_normalize) {
             denormalize_convolutional_layer(l);
             net.layers[i].batch_normalize=0;
         }

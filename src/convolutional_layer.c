@@ -130,11 +130,13 @@ void cudnn_convolutional_setup(layer *l)
     cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w); 
     cudnnSetTensor4dDescriptor(l->normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l->out_c, 1, 1); 
     cudnnSetFilter4dDescriptor(l->weightDesc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, l->n, l->c, l->size, l->size); 
-#if CUDNN_VERSION >= 6000
+
+    #if CUDNN_MAJOR >= 6
     cudnnSetConvolution2dDescriptor(l->convDesc, l->pad, l->pad, l->stride, l->stride, 1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT);
-#else
+    #else
     cudnnSetConvolution2dDescriptor(l->convDesc, l->pad, l->pad, l->stride, l->stride, 1, 1, CUDNN_CROSS_CORRELATION);
-#endif
+    #endif
+
     cudnnGetConvolutionForwardAlgorithm(cudnn_handle(),
             l->srcTensorDesc,
             l->weightDesc,
@@ -238,7 +240,6 @@ convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int
         l.x_norm = calloc(l.batch*l.outputs, sizeof(float));
     }
     if(adam){
-        l.adam = 1;
         l.m = calloc(c*n*size*size, sizeof(float));
         l.v = calloc(c*n*size*size, sizeof(float));
         l.bias_m = calloc(n, sizeof(float));
@@ -511,8 +512,13 @@ void backward_convolutional_layer(convolutional_layer l, network net)
     }
 }
 
-void update_convolutional_layer(convolutional_layer l, int batch, float learning_rate, float momentum, float decay)
+void update_convolutional_layer(convolutional_layer l, update_args a)
 {
+    float learning_rate = a.learning_rate*l.learning_rate_scale;
+    float momentum = a.momentum;
+    float decay = a.decay;
+    int batch = a.batch;
+
     int size = l.size*l.size*l.c*l.n;
     axpy_cpu(l.n, learning_rate/batch, l.bias_updates, 1, l.biases, 1);
     scal_cpu(l.n, momentum, l.bias_updates, 1);

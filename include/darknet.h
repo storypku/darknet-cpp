@@ -88,8 +88,20 @@ typedef enum {
 } LAYER_TYPE;
 
 typedef enum{
-    SSE, MASKED, L1, SMOOTH
+    SSE, MASKED, L1, SEG, SMOOTH
 } COST_TYPE;
+
+typedef struct{
+    int batch;
+    float learning_rate;
+    float momentum;
+    float decay;
+    int adam;
+    float B1;
+    float B2;
+    float eps;
+    int t;
+} update_args;
 
 struct network;
 typedef struct network network;
@@ -103,10 +115,10 @@ struct layer{
     COST_TYPE cost_type;
     void (*forward)   (struct layer, struct network);
     void (*backward)  (struct layer, struct network);
-    void (*update)    (struct layer, int, float, float, float);
+    void (*update)    (struct layer, update_args);
     void (*forward_gpu)   (struct layer, struct network);
     void (*backward_gpu)  (struct layer, struct network);
-    void (*update_gpu)    (struct layer, int, float, float, float);
+    void (*update_gpu)    (struct layer, update_args);
     int batch_normalize;
     int shortcut;
     int batch;
@@ -160,12 +172,6 @@ struct layer{
     int log;
     int tanh;
 
-    int adam;
-    float B1;
-    float B2;
-    float eps;
-    int t;
-
     float alpha;
     float beta;
     float kappa;
@@ -173,6 +179,7 @@ struct layer{
     float coord_scale;
     float object_scale;
     float noobject_scale;
+    float mask_scale;
     float class_scale;
     int bias_match;
     int random;
@@ -201,6 +208,8 @@ struct layer{
     float * forgot_state;
     float * forgot_delta;
     float * state_delta;
+    float * combine_cpu;
+    float * combine_delta_cpu;
 
     float * concat;
     float * concat_delta;
@@ -269,6 +278,10 @@ struct layer{
     struct layer *self_layer;
     struct layer *output_layer;
 
+    struct layer *reset_layer;
+    struct layer *update_layer;
+    struct layer *state_layer;
+
     struct layer *input_gate_layer;
     struct layer *state_gate_layer;
     struct layer *input_save_layer;
@@ -332,6 +345,9 @@ struct layer{
     float *scale_m_gpu;
     float *bias_v_gpu;
     float *scale_v_gpu;
+
+    float * combine_gpu;
+    float * combine_delta_gpu;
 
     float * prev_state_gpu;
     float * forgot_state_gpu;
@@ -399,16 +415,17 @@ typedef enum {
 typedef struct network{
     int n;
     int batch;
-    int *seen;
+    size_t *seen;
+    int *t;
     float epoch;
     int subdivisions;
-    float momentum;
-    float decay;
     layer *layers;
     float *output;
     learning_rate_policy policy;
 
     float learning_rate;
+    float momentum;
+    float decay;
     float gamma;
     float scale;
     float power;
@@ -496,7 +513,7 @@ typedef struct{
 } data;
 
 typedef enum {
-    CLASSIFICATION_DATA, DETECTION_DATA, CAPTCHA_DATA, REGION_DATA, IMAGE_DATA, COMPARE_DATA, WRITING_DATA, SWAG_DATA, TAG_DATA, OLD_CLASSIFICATION_DATA, STUDY_DATA, DET_DATA, SUPER_DATA, LETTERBOX_DATA, REGRESSION_DATA, SEGMENTATION_DATA
+    CLASSIFICATION_DATA, DETECTION_DATA, CAPTCHA_DATA, REGION_DATA, IMAGE_DATA, COMPARE_DATA, WRITING_DATA, SWAG_DATA, TAG_DATA, OLD_CLASSIFICATION_DATA, STUDY_DATA, DET_DATA, SUPER_DATA, LETTERBOX_DATA, REGRESSION_DATA, SEGMENTATION_DATA, INSTANCE_DATA
 } data_type;
 
 typedef struct load_args{
@@ -518,6 +535,7 @@ typedef struct load_args{
     int background;
     int scale;
     int center;
+    int coords;
     float jitter;
     float angle;
     float aspect;
@@ -572,10 +590,10 @@ void normalize_cpu(float *x, float *mean, float *variance, int batch, int filter
 
 int best_3d_shift_r(image a, image b, int min, int max);
 #ifdef GPU
-void axpy_ongpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY);
-void fill_ongpu(int N, float ALPHA, float * X, int INCX);
-void scal_ongpu(int N, float ALPHA, float * X, int INCX);
-void copy_ongpu(int N, float * X, int INCX, float * Y, int INCY);
+void axpy_gpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY);
+void fill_gpu(int N, float ALPHA, float * X, int INCX);
+void scal_gpu(int N, float ALPHA, float * X, int INCX);
+void copy_gpu(int N, float * X, int INCX, float * Y, int INCY);
 
 void cuda_set_device(int n);
 void cuda_free(float *x_gpu);
@@ -630,9 +648,10 @@ void save_weights_upto(network net, char *filename, int cutoff);
 void load_weights_upto(network *net, const char *filename, int start, int cutoff);
 
 void zero_objectness(layer l);
-void get_region_boxes(layer l, int w, int h, int netw, int neth, float thresh, float **probs, box *boxes, int only_objectness, int *map, float tree_thresh, int relative);
+void get_region_boxes(layer l, int w, int h, int netw, int neth, float thresh, float **probs, box *boxes, float **masks, int only_objectness, int *map, float tree_thresh, int relative);
 void free_network(network net);
 void set_batch_network(network *net, int b);
+void set_temp_network(network net, float t);
 image load_image(char *filename, int w, int h, int c);
 image load_image_color(char *filename, int w, int h);
 image make_image(int w, int h, int c);
@@ -652,7 +671,7 @@ void draw_box_width(image a, int x1, int y1, int x2, int y2, int w, float r, flo
 float get_current_rate(network net);
 void composite_3d(char *f1, char *f2, char *out, int delta);
 data load_data_old(char **paths, int n, int m, char **labels, int k, int w, int h);
-int get_current_batch(network net);
+size_t get_current_batch(network net);
 void constrain_image(image im);
 image get_network_image_layer(network net, int i);
 layer get_network_output_layer(network net);
@@ -665,13 +684,15 @@ void random_distort_image(image im, float hue, float saturation, float exposure)
 void fill_image(image m, float s);
 image grayscale_image(image im);
 void rotate_image_cw(image im, int times);
+double what_time_is_it_now();
 image rotate_image(image m, float rad);
 void visualize_network(network net);
 float box_iou(box a, box b);
 void do_nms(box *boxes, float **probs, int total, int classes, float thresh);
 data load_all_cifar10();
 box_label *read_boxes(char *filename, int *n);
-void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **labels, int classes);
+box float_to_box(float *f, int stride);
+void draw_detections(image im, int num, float thresh, box *boxes, float **probs, float **masks, char **names, image **alphabet, int classes);
 
 matrix network_predict_data(network net, data test);
 image **load_alphabet();
@@ -682,6 +703,12 @@ float *network_predict_p(network *net, float *input);
 int network_width(network *net);
 int network_height(network *net);
 float *network_predict_image(network *net, image im);
+void network_detect(network *net, image im, float thresh, float hier_thresh, float nms, box *boxes, float **probs);
+int num_boxes(network *net);
+box *make_boxes(network *net);
+
+void reset_network_state(network net, int b);
+void reset_network_state(network net, int b);
 
 char **get_labels(char *filename);
 void do_nms_sort(box *boxes, float **probs, int total, int classes, float thresh);
@@ -697,6 +724,7 @@ image get_image_from_stream(CvCapture *cap);
 void free_image(image m);
 float train_network(network net, data d);
 pthread_t load_data_in_thread(load_args args);
+void load_data_blocking(load_args args);
 list *get_paths(char *filename);
 void hierarchy_predictions(float *predictions, int n, tree *hier, int only_leaves, int stride);
 void change_leaves(tree *t, char *leaf_list);
@@ -732,3 +760,4 @@ float rand_normal();
 #endif
 
 #endif
+
