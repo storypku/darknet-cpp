@@ -432,6 +432,11 @@ image copy_image(image p)
     return copy;
 }
 
+/*
+ *  BBBBBBBB...BGGGGGGGG...GRRRRRRRR...R
+ *  to
+ *  RRRRRRRR...RGGGGGGGG...GBBBBBBBB...B
+ */
 void rgbgr_image(image im)
 {
     int i;
@@ -526,6 +531,11 @@ void ipl_into_image(IplImage* src, image im)
     }
 }
 
+/*
+ *  BGRBGRBGRBGRBGR...BGR
+ *  to
+ *  BBBBBBB...BGGGGGGGGG...GRRRRRRRRR...R with each value a float with range [0.0, 1.0]
+ */
 image ipl_to_image(IplImage* src)
 {
     int h = src->height;

@@ -1,10 +1,13 @@
 *.o
+*.a
+*.so
 *.dSYM
 *.csv
 *.out
 *.png
 *.jpg
 *.pyc
+*.pc
 old/
 mnist/
 data/
@@ -16,6 +19,7 @@ convnet/
 decaf/
 submission/
 cfg/
+darknet_cpp/examples/darknet_cpp_jetson_detection
 darknet
 .fuse*
 *.log
