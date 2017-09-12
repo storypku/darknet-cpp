@@ -198,7 +198,7 @@ bool Detector::impl::detect(const Image & image)
     // Predict
     (void) network_predict(m_net, image.data);
     get_region_boxes(m_l, m_output_width, m_output_height, m_net.w, m_net.h, m_threshold,
-                        m_probs, m_boxes, 0, 0, m_hier_threshold, 0);
+                        m_probs, m_boxes, 0, 0, 0, m_hier_threshold, 0);
 
     // Apply non maxima suppression
     DPRINTF("m_l.softmax_tree = %p, nms = %f\n", m_l.softmax_tree, m_nms);
