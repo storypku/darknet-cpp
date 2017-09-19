@@ -1,6 +1,7 @@
 GPU=1
 CUDNN=1
 OPENCV=1
+OPENMP=0
 DEBUG=0
 ASAN=0
 
@@ -26,7 +27,12 @@ ARFLAGS=rcs
 OPTS=-Ofast
 LDFLAGS= -lm -pthread 
 COMMON= -Iinclude/ -Isrc/
-CFLAGS=-Wall -Wfatal-errors -fPIC
+
+CFLAGS=-Wall -Wno-unknown-pragmas -Wfatal-errors -fPIC
+
+ifeq ($(OPENMP), 1) 
+CFLAGS+= -fopenmp
+endif
 
 ifeq ($(DEBUG), 1) 
 OPTS= -g -O0
@@ -71,7 +77,6 @@ OBJS = $(addprefix $(OBJDIR), $(OBJ))
 DEPS = $(wildcard src/*.h) Makefile include/darknet.h
 
 all: obj backup results $(SLIB) $(ALIB) $(EXEC)
-
 
 $(EXEC): $(EXECOBJ) $(ALIB)
 	$(CC) $(COMMON) $(CFLAGS) $^ -o $@ $(LDFLAGS) $(ALIB)

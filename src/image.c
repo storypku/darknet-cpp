@@ -190,7 +190,7 @@ image **load_alphabet()
     return alphabets;
 }
 
-void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
+void draw_detections(image im, int num, float thresh, box *boxes, float **probs, float **masks, char **names, image **alphabet, int classes)
 {
     int i;
 
@@ -198,8 +198,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
         int class = max_index(probs[i], classes);
         float prob = probs[i][class];
         if(prob > thresh){
-
-            int width = im.h * .012;
+            int width = im.h * .006;
 
             if(0){
                 width = pow(prob, 1./2.)*10+1;
@@ -241,6 +240,15 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
                 image label = get_label(alphabet, label_text, (im.h*.03)/10);
                 draw_label(im, top + width, left, label, rgb);
                 free_image(label);
+            }
+            if (masks){
+                image mask = float_to_image(14, 14, 1, masks[i]);
+                image resized_mask = resize_image(mask, b.w*im.w, b.h*im.h);
+                image tmask = threshold_image(resized_mask, .5);
+                embed_image(tmask, im, left, top);
+                free_image(mask);
+                free_image(resized_mask);
+                free_image(tmask);
             }
         }
     }
@@ -959,8 +967,10 @@ augment_args random_augment_args(image im, float angle, float aspect, int low, i
 
     float dx = (im.w*scale/aspect - w) / 2.;
     float dy = (im.h*scale - w) / 2.;
-    if(dx < 0) dx = 0;
-    if(dy < 0) dy = 0;
+
+    //if(dx < 0) dx = 0;
+    //if(dy < 0) dy = 0;
+
     dx = rand_uniform(-dx, dx);
     dy = rand_uniform(-dy, dy);
 
@@ -1445,10 +1455,13 @@ float get_pixel(image m, int x, int y, int c)
 }
 float get_pixel_extend(image m, int x, int y, int c)
 {
+    if(x < 0 || x >= m.w || y < 0 || y >= m.h) return 0;
+    /*
     if(x < 0) x = 0;
     if(x >= m.w) x = m.w-1;
     if(y < 0) y = 0;
     if(y >= m.h) y = m.h-1;
+    */
     if(c < 0 || c >= m.c) return 0;
     return get_pixel(m, x, y, c);
 }

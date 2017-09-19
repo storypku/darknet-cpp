@@ -43,6 +43,7 @@ char **read_tokens(char *filename, size_t *read)
             size = size*2;
             d = realloc(d, size*sizeof(char *));
         }
+        if(0==strcmp(line, "<NEWLINE>")) line = "\n";
         d[count-1] = line;
     }
     fclose(fp);
@@ -107,19 +108,6 @@ float_pair get_rnn_data(unsigned char *text, size_t *offsets, int characters, si
     return p;
 }
 
-void reset_rnn_state(network net, int b)
-{
-    int i;
-    for (i = 0; i < net.n; ++i) {
-        #ifdef GPU
-        layer l = net.layers[i];
-        if(l.state_gpu){
-            fill_ongpu(l.outputs, 0, l.state_gpu + l.outputs*b, 1);
-        }
-        #endif
-    }
-}
-
 void train_char_rnn(char *cfgfile, char *weightfile, char *filename, int clear, int tokenized)
 {
     srand(time(0));
@@ -182,24 +170,24 @@ void train_char_rnn(char *cfgfile, char *weightfile, char *filename, int clear, 
         if (avg_loss < 0) avg_loss = loss;
         avg_loss = avg_loss*.9 + loss*.1;
 
-        int chars = get_current_batch(net)*batch;
+        size_t chars = get_current_batch(net)*batch;
         fprintf(stderr, "%d: %f, %f avg, %f rate, %lf seconds, %f epochs\n", i, loss, avg_loss, get_current_rate(net), sec(clock()-time), (float) chars/size);
 
         for(j = 0; j < streams; ++j){
             //printf("%d\n", j);
-            if(rand()%10 == 0){
+            if(rand()%64 == 0){
                 //fprintf(stderr, "Reset\n");
                 offsets[j] = rand_size_t()%size;
-                reset_rnn_state(net, j);
+                reset_network_state(net, j);
             }
         }
 
-        if(i%1000==0){
+        if(i%10000==0){
             char buff[256];
             sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
             save_weights(net, buff);
         }
-        if(i%10==0){
+        if(i%100==0){
             char buff[256];
             sprintf(buff, "%s/%s.backup", backup_directory, base);
             save_weights(net, buff);
@@ -273,6 +261,54 @@ void test_char_rnn(char *cfgfile, char *weightfile, int num, char *seed, float t
         print_symbol(c, tokens);
     }
     printf("\n");
+}
+
+void test_tactic_rnn_multi(char *cfgfile, char *weightfile, int num, float temp, int rseed, char *token_file)
+{
+    char **tokens = 0;
+    if(token_file){
+        size_t n;
+        tokens = read_tokens(token_file, &n);
+    }
+
+    srand(rseed);
+    char *base = basecfg(cfgfile);
+    fprintf(stderr, "%s\n", base);
+
+    network net = parse_network_cfg(cfgfile);
+    if(weightfile){
+        load_weights(&net, weightfile);
+    }
+    int inputs = net.inputs;
+
+    int i, j;
+    for(i = 0; i < net.n; ++i) net.layers[i].temperature = temp;
+    int c = 0;
+    float *input = calloc(inputs, sizeof(float));
+    float *out = 0;
+
+    while(1){
+        reset_network_state(net, 0);
+        while((c = getc(stdin)) != EOF && c != 0){
+            input[c] = 1;
+            out = network_predict(net, input);
+            input[c] = 0;
+        }
+        for(i = 0; i < num; ++i){
+            for(j = 0; j < inputs; ++j){
+                if (out[j] < .0001) out[j] = 0;
+            }
+            int next = sample_array(out, inputs);
+            if(c == '.' && next == '\n') break;
+            c = next;
+            print_symbol(c, tokens);
+
+            input[c] = 1;
+            out = network_predict(net, input);
+            input[c] = 0;
+        }
+        printf("\n");
+    }
 }
 
 void test_tactic_rnn(char *cfgfile, char *weightfile, int num, float temp, int rseed, char *token_file)
@@ -409,7 +445,7 @@ void valid_char_rnn(char *cfgfile, char *weightfile, char *seed)
         input[c] = 0;
         sum += log(out[next])/log2;
         c = next;
-        printf("%d Perplexity: %4.4f    Word Perplexity: %4.4f\n", count, pow(2, -sum/count), pow(2, -sum/words));
+        printf("%d BPC: %4.4f   Perplexity: %4.4f    Word Perplexity: %4.4f\n", count, -sum/count, pow(2, -sum/count), pow(2, -sum/words));
     }
 }
 
@@ -430,7 +466,7 @@ void vec_char_rnn(char *cfgfile, char *weightfile, char *seed)
     int i;
     char *line;
     while((line=fgetl(stdin)) != 0){
-        reset_rnn_state(net, 0);
+        reset_network_state(net, 0);
         for(i = 0; i < seed_len; ++i){
             c = seed[i];
             input[(int)c] = 1;

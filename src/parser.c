@@ -191,11 +191,6 @@ convolutional_layer parse_convolutional(list *options, size_params params)
     convolutional_layer layer = make_convolutional_layer(batch,h,w,c,n,size,stride,padding,activation, batch_normalize, binary, xnor, params.net.adam);
     layer.flipped = option_find_int_quiet(options, "flipped", 0);
     layer.dot = option_find_float_quiet(options, "dot", 0);
-    if(params.net.adam){
-        layer.B1 = params.net.B1;
-        layer.B2 = params.net.B2;
-        layer.eps = params.net.eps;
-    }
 
     return layer;
 }
@@ -218,13 +213,11 @@ layer parse_crnn(list *options, size_params params)
 layer parse_rnn(list *options, size_params params)
 {
     int output = option_find_int(options, "output",1);
-    int hidden = option_find_int(options, "hidden",1);
     char *activation_s = option_find_str(options, "activation", "logistic");
     ACTIVATION activation = get_activation(activation_s);
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
-    int logistic = option_find_int_quiet(options, "logistic", 0);
 
-    layer l = make_rnn_layer(params.batch, params.inputs, hidden, output, params.time_steps, activation, batch_normalize, logistic);
+    layer l = make_rnn_layer(params.batch, params.inputs, output, params.time_steps, activation, batch_normalize, params.net.adam);
 
     l.shortcut = option_find_int_quiet(options, "shortcut", 0);
 
@@ -236,7 +229,7 @@ layer parse_gru(list *options, size_params params)
     int output = option_find_int(options, "output",1);
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
-    layer l = make_gru_layer(params.batch, params.inputs, output, params.time_steps, batch_normalize);
+    layer l = make_gru_layer(params.batch, params.inputs, output, params.time_steps, batch_normalize, params.net.adam);
     l.tanh = option_find_int_quiet(options, "tanh", 0);
 
     return l;
@@ -247,21 +240,20 @@ layer parse_lstm(list *options, size_params params)
     int output = option_find_int(options, "output", 1);
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
-    layer l = make_lstm_layer(params.batch, params.inputs, output, params.time_steps, batch_normalize);
+    layer l = make_lstm_layer(params.batch, params.inputs, output, params.time_steps, batch_normalize, params.net.adam);
 
     return l;
 }
 
-connected_layer parse_connected(list *options, size_params params)
+layer parse_connected(list *options, size_params params)
 {
     int output = option_find_int(options, "output",1);
     char *activation_s = option_find_str(options, "activation", "logistic");
     ACTIVATION activation = get_activation(activation_s);
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
-    connected_layer layer = make_connected_layer(params.batch, params.inputs, output, activation, batch_normalize);
-
-    return layer;
+    layer l = make_connected_layer(params.batch, params.inputs, output, activation, batch_normalize, params.net.adam);
+    return l;
 }
 
 softmax_layer parse_softmax(list *options, size_params params)
@@ -304,6 +296,7 @@ layer parse_region(list *options, size_params params)
     l.coord_scale = option_find_float(options, "coord_scale", 1);
     l.object_scale = option_find_float(options, "object_scale", 1);
     l.noobject_scale = option_find_float(options, "noobject_scale", 1);
+    l.mask_scale = option_find_float(options, "mask_scale", 1);
     l.class_scale = option_find_float(options, "class_scale", 1);
     l.bias_match = option_find_int_quiet(options, "bias_match",0);
 
@@ -359,6 +352,7 @@ cost_layer parse_cost(list *options, size_params params)
     float scale = option_find_float_quiet(options, "scale",1);
     cost_layer layer = make_cost_layer(params.batch, params.inputs, type, scale);
     layer.ratio =  option_find_float_quiet(options, "ratio",0);
+    layer.noobject_scale =  option_find_float_quiet(options, "noobj", 1);
     layer.thresh =  option_find_float_quiet(options, "thresh",0);
     return layer;
 }
@@ -567,7 +561,7 @@ void parse_net_options(list *options, network *net)
     if(net->adam){
         net->B1 = option_find_float(options, "B1", .9);
         net->B2 = option_find_float(options, "B2", .999);
-        net->eps = option_find_float(options, "eps", .00000001);
+        net->eps = option_find_float(options, "eps", .0000001);
     }
 
     net->h = option_find_int_quiet(options, "height",0);
@@ -855,10 +849,6 @@ void save_convolutional_weights(layer l, FILE *fp)
         fwrite(l.rolling_variance, sizeof(float), l.n, fp);
     }
     fwrite(l.weights, sizeof(float), num, fp);
-    if(l.adam){
-        //fwrite(l.m, sizeof(float), num, fp);
-        //fwrite(l.v, sizeof(float), num, fp);
-    }
 }
 
 void save_batchnorm_weights(layer l, FILE *fp)
@@ -901,12 +891,12 @@ void save_weights_upto(network net, char *filename, int cutoff)
     if(!fp) file_error(filename);
 
     int major = 0;
-    int minor = 1;
+    int minor = 2;
     int revision = 0;
     fwrite(&major, sizeof(int), 1, fp);
     fwrite(&minor, sizeof(int), 1, fp);
     fwrite(&revision, sizeof(int), 1, fp);
-    fwrite(net.seen, sizeof(int), 1, fp);
+    fwrite(net.seen, sizeof(size_t), 1, fp);
 
     int i;
     for(i = 0; i < net.n && i < cutoff; ++i){
@@ -931,12 +921,18 @@ void save_weights_upto(network net, char *filename, int cutoff)
             save_connected_weights(*(l.uo), fp);
             save_connected_weights(*(l.ug), fp);
         } if (l.type == GRU) {
-            save_connected_weights(*(l.wz), fp);
-            save_connected_weights(*(l.wr), fp);
-            save_connected_weights(*(l.wh), fp);
-            save_connected_weights(*(l.uz), fp);
-            save_connected_weights(*(l.ur), fp);
-            save_connected_weights(*(l.uh), fp);
+            if(1){
+                save_connected_weights(*(l.wz), fp);
+                save_connected_weights(*(l.wr), fp);
+                save_connected_weights(*(l.wh), fp);
+                save_connected_weights(*(l.uz), fp);
+                save_connected_weights(*(l.ur), fp);
+                save_connected_weights(*(l.uh), fp);
+            }else{
+                save_connected_weights(*(l.reset_layer), fp);
+                save_connected_weights(*(l.update_layer), fp);
+                save_connected_weights(*(l.state_layer), fp);
+            }
         }  if(l.type == CRNN){
             save_convolutional_weights(*(l.input_layer), fp);
             save_convolutional_weights(*(l.self_layer), fp);
@@ -1066,12 +1062,19 @@ void load_convolutional_weights(layer l, FILE *fp)
             fill_cpu(l.n, 0, l.rolling_mean, 1);
             fill_cpu(l.n, 0, l.rolling_variance, 1);
         }
+        if(0){
+            int i;
+            for(i = 0; i < l.n; ++i){
+                printf("%g, ", l.rolling_mean[i]);
+            }
+            printf("\n");
+            for(i = 0; i < l.n; ++i){
+                printf("%g, ", l.rolling_variance[i]);
+            }
+            printf("\n");
+        }
     }
     fread(l.weights, sizeof(float), num, fp);
-    if(l.adam){
-        //fread(l.m, sizeof(float), num, fp);
-        //fread(l.v, sizeof(float), num, fp);
-    }
     //if(l.c == 3) scal_cpu(num, 1./256, l.weights, 1);
     if (l.flipped) {
         transpose_matrix(l.weights, l.c*l.size*l.size, l.n);
@@ -1103,7 +1106,13 @@ void load_weights_upto(network *net, const char *filename, int start, int cutoff
     fread(&major, sizeof(int), 1, fp);
     fread(&minor, sizeof(int), 1, fp);
     fread(&revision, sizeof(int), 1, fp);
-    fread(net->seen, sizeof(int), 1, fp);
+    if ((major*10 + minor) >= 2){
+        fread(net->seen, sizeof(size_t), 1, fp);
+    } else {
+        int iseen = 0;
+        fread(&iseen, sizeof(int), 1, fp);
+        *net->seen = iseen;
+    }
     int transpose = (major > 1000) || (minor > 1000);
 
     int i;
@@ -1140,12 +1149,18 @@ void load_weights_upto(network *net, const char *filename, int start, int cutoff
             load_connected_weights(*(l.ug), fp, transpose);
         }
         if (l.type == GRU) {
-            load_connected_weights(*(l.wz), fp, transpose);
-            load_connected_weights(*(l.wr), fp, transpose);
-            load_connected_weights(*(l.wh), fp, transpose);
-            load_connected_weights(*(l.uz), fp, transpose);
-            load_connected_weights(*(l.ur), fp, transpose);
-            load_connected_weights(*(l.uh), fp, transpose);
+            if(1){
+                load_connected_weights(*(l.wz), fp, transpose);
+                load_connected_weights(*(l.wr), fp, transpose);
+                load_connected_weights(*(l.wh), fp, transpose);
+                load_connected_weights(*(l.uz), fp, transpose);
+                load_connected_weights(*(l.ur), fp, transpose);
+                load_connected_weights(*(l.uh), fp, transpose);
+            }else{
+                load_connected_weights(*(l.reset_layer), fp, transpose);
+                load_connected_weights(*(l.update_layer), fp, transpose);
+                load_connected_weights(*(l.state_layer), fp, transpose);
+            }
         }
         if(l.type == LOCAL){
             int locations = l.out_w*l.out_h;
