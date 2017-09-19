@@ -670,7 +670,7 @@ void validate_detector_PRcurve(char *datacfg, char *cfgfile, char *weightfile)
 		image sized = resize_image(orig, net.w, net.h);
 		char *id = basecfg(path);
 		network_predict(net, sized.data);
-		get_region_boxes(l, sized.w, sized.h, net.w, net.h, thresh, probs, boxes, 1, 0, .5, 1);
+                get_region_boxes(l, sized.w, sized.h, net.w, net.h, thresh, probs, boxes, 0, 0, 0, .5, 1);
 		if (nms) do_nms(boxes, probs, l.w*l.h*l.n, 1, nms);
 
 		char labelpath[4096];
