@@ -7,7 +7,6 @@
 #include "logging.hpp"
 #include "darknet.h"                /* original darknet !!! */
 #include <boost/filesystem.hpp>
-#include <memory>
 
 using namespace Darknet;
 

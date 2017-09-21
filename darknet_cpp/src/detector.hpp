@@ -7,6 +7,7 @@
 #define DETECTOR_HPP
 
 #include <string>
+#include <memory>
 #include "image.hpp"
 #include "detection.hpp"
 
