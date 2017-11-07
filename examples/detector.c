@@ -688,48 +688,48 @@ void validate_detector_PRcurve(char *datacfg, char *cfgfile, char *weightfile)
 		    }
 		}
 
-    // Keep track of matched detections
-    int *used_det = (int *) calloc(l.w*l.h*l.n, sizeof(int));
-    if (used_det == NULL) {
-      fprintf(stderr, "Out of memory\n");
-      exit(1);
-    }
+		// Keep track of matched detections
+		int *used_det = (int *) calloc(l.w*l.h*l.n, sizeof(int));
+		if (used_det == NULL) {
+			fprintf(stderr, "Out of memory\n");
+			exit(1);
+		}
 
 		for (j = 0; j < num_labels; ++j) {
 		    ++total;
 		    box t = {truth[j].x, truth[j].y, truth[j].w, truth[j].h};
 		    float best_iou = 0;
-        int best_k = -1;
+		    int best_k = -1;
 		    for(k = 0; k < l.w*l.h*l.n; ++k){
-          if (used_det[k] == 0) {
-			      float iou = box_iou(boxes[k], t);
-			      if(probs[k][0] > thresh && iou > best_iou){
-			        best_iou = iou;
-              best_k = k;
-			      }
-          }
+			if (used_det[k] == 0) {
+				float iou = box_iou(boxes[k], t);
+				if(probs[k][0] > thresh && iou > best_iou){
+					best_iou = iou;
+					best_k = k;
+				}
+			}
 		    }
 		    avg_iou += best_iou;
 		    if(best_iou > iou_thresh && best_k != -1){
 			    ++TP;
-          used_det[best_k] = 1;
+			    used_det[best_k] = 1;
 		    }
 		}
 		FP = proposals - TP;
 
-    if (FP < 0) {
-      // Should not be possible!
-      fprintf(stderr, "FP < 0 -> setting to 0\n");
-      FP = 0;
-    }
+		if (FP < 0) {
+			// Should not be possible!
+    		  	fprintf(stderr, "FP < 0 -> setting to 0\n");
+    		  	FP = 0;
+    		}
 
-    free(used_det);
+		free(used_det);
 		free(id);
 		free_image(orig);
 		free_image(sized);
 	}
 
-  //fprintf(stderr, "TP: %d | FP: %d | proposals: %d | total: %d\n", TP, FP, proposals, total);
+	//fprintf(stderr, "TP: %d | FP: %d | proposals: %d | total: %d\n", TP, FP, proposals, total);
 	fprintf(stderr, "Thresh:%.4f\tRecall:%.2f%%\tPrecision:%.2f%%\n", thresh, 100.*TP/total, 100.*TP/(TP+FP));
     }
 }
