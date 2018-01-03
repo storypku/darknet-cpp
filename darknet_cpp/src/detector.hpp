@@ -48,6 +48,15 @@ public:
                 int output_height = 0);
 
     /*
+     *  Set output size to scale detection coordinates. Usefull if output_size it not yet known when calling setup
+     *  output_width:       Detection coordinates will be scaled according to this width. See the
+     *                      'get_detections' method for more info
+     *  output_height:      Detection coordinates will be scaled according to this height. See the
+     *                      'get_detections' method for more info
+     */
+    void set_output_size(int output_width, int output_height);
+
+    /*
      *  Run the network on a given input image
      *  image:  input image. The image dimensions (width, height and number of channels) must match the
      *          network input size, if not, the function will return false
@@ -61,7 +70,7 @@ public:
      *  returns true on success
      *
      *  The detection values x, y, width, height have dimensions according to the given 'output_width'
-     *  and 'output_height' (see setup method).
+     *  and 'output_height' (see setup or set_output_size methods).
      *      x:      0 = left edge of image, output_width = right edge of image
      *      y:      0 = top edge of image, output_height = bottom edge of image
      *      width:  0 = 0, output_width = width of image

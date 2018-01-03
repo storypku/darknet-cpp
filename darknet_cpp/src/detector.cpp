@@ -27,6 +27,7 @@ public:
                 float hier_thresh,
                 int output_width,
                 int output_height);
+    void set_output_size(int output_width, int output_height);
     void release();
     bool detect(const Image & image);
     bool get_detections(std::vector<Detection>& detections);
@@ -175,6 +176,12 @@ bool Detector::impl::setup(std::string data_cfg_file,
     return true;
 }
 
+void Detector::impl::set_output_size(int output_width, int output_height)
+{
+    m_output_width = output_width;
+    m_output_height = output_height;
+}
+
 bool Detector::impl::detect(const Image & image)
 {
     if (!m_bSetup) {
@@ -282,6 +289,11 @@ bool Detector::setup(std::string data_cfg_file,
 {
     return pimpl->setup(data_cfg_file, net_cfg_file, weight_cfg_file, nms,
                             thresh, hier_thresh, output_width, output_height);
+}
+
+void Detector::set_output_size(int output_width, int output_height)
+{
+    return pimpl->set_output_size(output_width, output_height);
 }
 
 bool Detector::detect(const Image & image)
