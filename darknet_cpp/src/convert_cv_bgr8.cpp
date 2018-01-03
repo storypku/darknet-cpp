@@ -22,7 +22,7 @@ void ConvertCvBgr8::setup(int in_width, int in_height, int out_width, int out_he
 
     /* calculate a width - height pair that fits inside out_width - out_height
        and has the same aspect ratio of in_width - in_height */
-    if (((float)out_width/in_width) < ((float)out_height/in_height)) {
+   if (((float)out_width/in_width) < ((float)out_height/in_height)) {
         new_w = out_width;
         new_h = (in_height * out_width) / in_width;
     } else {
