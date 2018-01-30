@@ -208,7 +208,8 @@ bool Detector::impl::detect(const Image & image)
 
     // Apply non maxima suppression
     DPRINTF("m_l.softmax_tree = %p, nms = %f\n", m_l.softmax_tree, m_nms);
-    do_nms(m_boxes, m_probs, m_l.w * m_l.h * m_l.n, m_l.classes, m_nms);
+    if (m_nms > 0)
+        do_nms(m_boxes, m_probs, m_l.w * m_l.h * m_l.n, m_l.classes, m_nms);
 
     return true;
 }
