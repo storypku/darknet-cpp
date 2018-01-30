@@ -16,13 +16,16 @@ class Image
 public:
     Image();
 
+    void resize(int w, int h, int c);
     void operator=(const Image & image);
 
     int width;
     int height;
     int channels;
-    float* data;    /* used for reading by detector */
-    cv::Mat _data;  /* owns the image data */
+    float *data;
+
+private:
+    std::vector<float> m_data;
 };
 
 }

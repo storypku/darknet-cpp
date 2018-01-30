@@ -38,7 +38,6 @@ void ConvertCvBgr8::setup(int in_width, int in_height, int out_width, int out_he
 
 bool ConvertCvBgr8::convert(const cv::Mat& in, Image& out)
 {
-    cv::Mat image_rgb;
     std::vector<cv::Mat> floatMatChannels(3);
 
     if (in.empty() || in.channels() != 3) {
@@ -48,23 +47,22 @@ bool ConvertCvBgr8::convert(const cv::Mat& in, Image& out)
 
     if (m_resize_needed) {
         cv::resize(in, m_image_resize_roi, m_new_size);
-        cv::cvtColor(m_image_resize, image_rgb, CV_BGR2RGB);
+        cv::cvtColor(m_image_resize, m_image_rgb, CV_BGR2RGB);
     } else {
-        cv::cvtColor(in, image_rgb, CV_BGR2RGB);
+        cv::cvtColor(in, m_image_rgb, CV_BGR2RGB);
     }
 
+    // ensure out is allocated
+    out.resize(m_out_width, m_out_height, 3);
+    floatMatChannels[0] = cv::Mat(m_out_height, m_out_width, CV_32FC1, &out.data[0]);
+    floatMatChannels[1] = cv::Mat(m_out_height, m_out_width, CV_32FC1, &out.data[m_out_width * m_out_height]);
+    floatMatChannels[2] = cv::Mat(m_out_height, m_out_width, CV_32FC1, &out.data[2 * m_out_width * m_out_height]);
+
     // Convert the bytes to float
-    image_rgb.convertTo(out._data, CV_32FC3, 1/255.0);
+    m_image_rgb.convertTo(m_image_rgb_float, CV_32FC3, 1/255.0);
 
     // Concatenate R,G,B channels in one big buffer
-    cv::split(out._data, floatMatChannels);
-    cv::vconcat(floatMatChannels, out._data);
-
-    // Set output image fields
-    out.data = reinterpret_cast<float *>(out._data.data);
-    out.width = m_out_width;
-    out.height = m_out_height;
-    out.channels = 3;
+    cv::split(m_image_rgb_float, floatMatChannels);
 
     return true;
 }

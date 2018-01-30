@@ -26,6 +26,8 @@ private:
     cv::Size m_new_size;
     cv::Mat m_image_resize;
     cv::Mat m_image_resize_roi;
+    cv::Mat m_image_rgb;
+    cv::Mat m_image_rgb_float;
 };
 
 }
