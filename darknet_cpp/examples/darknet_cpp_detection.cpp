@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     std::vector<Darknet::Detection> detections;
 
     if (argc < 4) {
-        std::cerr << "Usage: " << argv[0] << " <input_data_file> <input_cfg_file> <input_weights_file>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <input_data_file> <input_cfg_file> <input_weights_file> [<videofile>]" << std::endl;
         return -1;
     }
 
@@ -31,7 +31,13 @@ int main(int argc, char *argv[])
     std::string input_cfg_file(argv[2]);
     std::string input_weights_file(argv[3]);
 
-    if (!cap.open(0)) {
+    if (argc == 5) {
+        std::string videofile(argv[4]);
+        if (!cap.open(videofile)) {
+            std::cerr << "Could not open video file" << std::endl;
+            return -1;
+        }
+    } else if (!cap.open(0)) {
         std::cerr << "Could not open video input stream" << std::endl;
         return -1;
     }
@@ -52,7 +58,6 @@ int main(int argc, char *argv[])
     }
 
     converter.setup(image_width, image_height, detector.get_width(), detector.get_height());
-
     auto prevTime = std::chrono::system_clock::now();
 
     while(1) {
@@ -73,7 +78,6 @@ int main(int argc, char *argv[])
             std::cerr << "Failed to run detector" << std::endl;
             return -1;
         }
-
         detector.get_detections(detections);
 
         // draw bounding boxes
