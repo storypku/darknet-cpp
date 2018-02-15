@@ -1,11 +1,13 @@
 /*
  *  Author: Maarten Vandersteegen EAVISE
- *  Description: Darknet C++ detection demo
+ *  Description: Darknet C++ detection demo with detections
+ *  running in seperate thread
  */
 
 #include "darknet.hpp"
 
 #include "opencv2/highgui/highgui.hpp"
+#include <thread>
 #include <string>
 #include <chrono>
 
@@ -13,13 +15,28 @@
 #define DETECTION_HIER_THRESHOLD    0.5
 #define NMS_THRESHOLD               0.4
 
+static Darknet::Detector g_detector;
+static Darknet::Image g_dnimage;
+static bool g_new_detections = false;
+
+static bool detect_in_image(void)
+{
+    if (!g_detector.detect(g_dnimage)) {
+        std::cerr << "Failed to run detector" << std::endl;
+        return false;
+    }
+
+    g_new_detections = true;
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     cv::VideoCapture cap;
-    cv::Mat cvimage;
+    cv::Mat cvimage, cvimage_prev;
     Darknet::Image dnimage;
     Darknet::ConvertCvBgr8 converter;
-    Darknet::Detector detector;
+    std::thread detector_thread;
     std::vector<Darknet::Detection> detections;
 
     if (argc < 4) {
@@ -45,7 +62,7 @@ int main(int argc, char *argv[])
     int image_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
     int image_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
-    if (!detector.setup(input_data_file,
+    if (!g_detector.setup(input_data_file,
                         input_cfg_file,
                         input_weights_file,
                         NMS_THRESHOLD,
@@ -57,7 +74,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    converter.setup(image_width, image_height, detector.get_width(), detector.get_height());
+    converter.setup(image_width, image_height, g_detector.get_width(), g_detector.get_height());
     auto prevTime = std::chrono::system_clock::now();
 
     while(1) {
@@ -73,24 +90,37 @@ int main(int argc, char *argv[])
             return -1;
         }
 
-        // run detector
-        if (!detector.detect(dnimage)) {
-            std::cerr << "Failed to run detector" << std::endl;
-            return -1;
+        if (detector_thread.joinable()) {
+            detector_thread.join();
         }
-        detector.get_detections(detections);
 
-        // draw bounding boxes
-        Darknet::image_overlay(detections, cvimage);
+        g_dnimage = dnimage;
 
-        auto now = std::chrono::system_clock::now();
-        std::chrono::duration<double> period = (now - prevTime);
-        prevTime = now;
-        std::cout << "FPS: " << 1 / period.count() << std::endl;
+        if (g_new_detections) {
+            g_new_detections = false;
 
-        cv::imshow("Overlay", cvimage);
-        cv::waitKey(1);
+            // get detections
+            g_detector.get_detections(detections);
 
+            // start new detection thread
+            detector_thread = std::thread(detect_in_image);
+
+            // draw bounding boxes
+            Darknet::image_overlay(detections, cvimage_prev);
+
+            auto now = std::chrono::system_clock::now();
+            std::chrono::duration<double> period = (now - prevTime);
+            prevTime = now;
+            std::cout << "FPS: " << 1 / period.count() << std::endl;
+
+            cv::imshow("Overlay", cvimage_prev);
+            cv::waitKey(1);
+
+        } else {
+            detector_thread = std::thread(detect_in_image);
+        }
+
+        cvimage_prev = cvimage.clone();
     }
 
     return 0;
