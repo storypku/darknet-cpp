@@ -22,7 +22,7 @@ public:
 
     /*
      *  Setup network for detection
-     *  data_cfg_file:      data configuration file
+     *  label_names_file:   file with class names, newline separated
      *  net_cfg_file:       network configuration file that describes the network architecture
      *  weight_cfg_file:    weights file that contains the trained network weights
      *  nms:                non maxima suppression threshold (number between 0 and 1)
@@ -38,7 +38,7 @@ public:
      *
      *  returns true on success
      */
-    bool setup(std::string data_cfg_file,
+    bool setup(std::string label_names_file,
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
                 float nms,

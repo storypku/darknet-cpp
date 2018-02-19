@@ -36,8 +36,8 @@ public:
     int get_channels();
 
 private:
+    std::vector<std::string> m_class_names;
     box     *m_boxes;
-    char    **m_classNames;
     float   **m_probs;
     bool    m_bSetup;
     network m_net;
@@ -54,8 +54,8 @@ private:
  */
 
 Detector::impl::impl() :
+        m_class_names(),
         m_boxes(nullptr),
-        m_classNames(nullptr),
         m_probs(nullptr),
         m_bSetup(false),
         m_net({}),
@@ -81,12 +81,9 @@ void Detector::impl::release()
         free(m_boxes);
     if (m_probs)
         free_ptrs((void **)m_probs, m_l.w*m_l.h*m_l.n);
-    if (m_classNames) {
-        //TODO
-    }
 }
 
-bool Detector::impl::setup(std::string data_cfg_file,
+bool Detector::impl::setup(std::string label_names_file,
                 std::string net_cfg_file,
                 std::string weight_cfg_file,
                 float nms,
@@ -96,8 +93,6 @@ bool Detector::impl::setup(std::string data_cfg_file,
                 int output_height)
 {
     int j;
-    char nameField[] = "names";
-    char defaultName[] = "data/names.list";
 
     m_nms = nms;
     m_threshold = thresh;
@@ -105,8 +100,8 @@ bool Detector::impl::setup(std::string data_cfg_file,
     m_output_width = output_width;
     m_output_height = output_height;
 
-    if (!boost::filesystem::exists(data_cfg_file)) {
-        DPRINTF("Data config file %s not found\n", data_cfg_file.c_str());
+    if (!boost::filesystem::exists(label_names_file)) {
+        DPRINTF("Label names file %s not found\n", label_names_file.c_str());
         return false;
     }
 
@@ -120,19 +115,11 @@ bool Detector::impl::setup(std::string data_cfg_file,
         return false;
     }
 
-    list *options = read_data_cfg(data_cfg_file.c_str());
+    std::ifstream label_names_stream(label_names_file);
+    std::string name;
 
-    char *nameListFile = option_find_str(options, nameField, defaultName);
-    if (!nameListFile) {
-        DPRINTF("No valid nameList file specified in options file [%s]!\n", data_cfg_file.c_str());
-        return false;
-    }
-
-    m_classNames = get_labels(nameListFile);
-    if (!m_classNames) {
-        DPRINTF("No valid class names specified in nameList file [%s]!\n", nameListFile);
-        return false;
-    }
+    while (std::getline(label_names_stream, name))
+        m_class_names.push_back(name);
 
     m_net = parse_network_cfg(net_cfg_file.c_str());
     DPRINTF("Setup: net.n = %d\n", m_net.n);
@@ -224,8 +211,15 @@ bool Detector::impl::get_detections(std::vector<Detection>& detections)
     // Extract detections in correct format
     detections.clear();
     for (i = 0; i < (m_l.w * m_l.h * m_l.n); ++i) {
-        int classIndex = max_index(m_probs[i], m_l.classes);
-        float prob = m_probs[i][classIndex];
+        float prob;
+        size_t class_index = max_index(m_probs[i], m_l.classes);
+
+        if (class_index >= m_class_names.size()) {
+            EPRINTF("Class index exceeds class names list, probably the model does not match the names list\n");
+            return false;
+        }
+
+        prob = m_probs[i][class_index];
 
         if (prob > m_threshold) {
             Detection detection;
@@ -234,8 +228,8 @@ bool Detector::impl::get_detections(std::vector<Detection>& detections)
             detection.width = m_boxes[i].w;
             detection.height = m_boxes[i].h;
             detection.probability = prob;
-            detection.label_index = classIndex;
-            detection.label = m_classNames[classIndex];
+            detection.label_index = class_index;
+            detection.label = m_class_names[class_index];
             detections.push_back(detection);
         }
     }
