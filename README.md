@@ -7,12 +7,13 @@ This is yet another fork of the darknet detection framework with some extra feat
 * C++ interface (inference only)
 
 For more general information on darknet see the [Darknet project website](http://pjreddie.com/darknet).
+See our [gitlab wiki](https://gitlab.com/EAVISE/darknet/wikis/home) for more information on how to train your own network.
 
 ## Compiling the C++ interface
 
 Requirements:
-    * OpenCV 3
-    * cmake
+* OpenCV 3
+* cmake
 
 ```
 cd darknet_cpp
@@ -36,7 +37,7 @@ Cleaning:
 
 ```
 make clean      # only cleans the C++ wrapper objects
-make cleanall   # also calls clean target from original Makefile
+make cleanall   # also calls the clean target from original Makefile
 ```
 
 ## Running provided examples
