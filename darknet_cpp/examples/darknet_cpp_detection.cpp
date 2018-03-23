@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
     std::vector<Darknet::Detection> detections;
 
     if (argc < 4) {
-        std::cerr << "Usage: " << argv[0] << " <input_data_file> <input_cfg_file> <input_weights_file> [<videofile>]" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <input_names_file> <input_cfg_file> <input_weights_file> [<videofile>]" << std::endl;
         return -1;
     }
 
-    std::string input_data_file(argv[1]);
+    std::string input_names_file(argv[1]);
     std::string input_cfg_file(argv[2]);
     std::string input_weights_file(argv[3]);
 
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     int image_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
     int image_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
-    if (!detector.setup(input_data_file,
+    if (!detector.setup(input_names_file,
                         input_cfg_file,
                         input_weights_file,
                         NMS_THRESHOLD,
