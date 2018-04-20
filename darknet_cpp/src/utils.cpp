@@ -59,7 +59,7 @@ void Darknet::image_overlay(const std::vector<Detection> detections, cv::Mat& im
 
         /* draw text and text background */
         cv::Rect background(text_orig.x, text_orig.y - text_size.height, text_size.width, text_size.height + baseline);
-        cv::rectangle(image, background, color, CV_FILLED);
+        cv::rectangle(image, background, color, cv::FILLED);
         cv::putText(image, text, text_orig, font_face, font_scale, cv::Scalar(0, 0, 0), text_thickness, cv::LINE_AA);
     }
 }

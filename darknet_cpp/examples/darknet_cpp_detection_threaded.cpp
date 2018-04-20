@@ -59,8 +59,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    int image_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
-    int image_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+    int image_width = cap.get(cv::CAP_PROP_FRAME_WIDTH);
+    int image_height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
     if (!g_detector.setup(input_names_file,
                         input_cfg_file,
