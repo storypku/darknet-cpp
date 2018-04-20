@@ -47,9 +47,9 @@ bool ConvertCvBgr8::convert(const cv::Mat& in, Image& out)
 
     if (m_resize_needed) {
         cv::resize(in, m_image_resize_roi, m_new_size);
-        cv::cvtColor(m_image_resize, m_image_rgb, CV_BGR2RGB);
+        cv::cvtColor(m_image_resize, m_image_rgb, cv::COLOR_BGR2RGB);
     } else {
-        cv::cvtColor(in, m_image_rgb, CV_BGR2RGB);
+        cv::cvtColor(in, m_image_rgb, cv::COLOR_BGR2RGB);
     }
 
     // ensure out is allocated
