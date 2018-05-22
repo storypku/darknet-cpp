@@ -37,11 +37,11 @@ public:
 
 private:
     std::vector<std::string> m_class_names;
-    box     *m_boxes;
-    float   **m_probs;
     bool    m_bSetup;
-    network m_net;
-    layer   m_l;
+    network *m_net;
+    detection *m_dets;
+    int     m_nboxes;
+    int     m_classes;
     float   m_nms;
     float   m_threshold;
     float   m_hier_threshold;
@@ -55,11 +55,11 @@ private:
 
 Detector::impl::impl() :
         m_class_names(),
-        m_boxes(nullptr),
-        m_probs(nullptr),
         m_bSetup(false),
-        m_net({}),
-        m_l({}),
+        m_net(nullptr),
+        m_dets(nullptr),
+        m_nboxes(0),
+        m_classes(0),
         m_nms(0),
         m_threshold(0),
         m_hier_threshold(0),
@@ -77,10 +77,6 @@ void Detector::impl::release()
 
     m_bSetup = false;
 
-    if (m_boxes)
-        free(m_boxes);
-    if (m_probs)
-        free_ptrs((void **)m_probs, m_l.w*m_l.h*m_l.n);
 }
 
 bool Detector::impl::setup(std::string label_names_file,
@@ -92,8 +88,6 @@ bool Detector::impl::setup(std::string label_names_file,
                 int output_width,
                 int output_height)
 {
-    int j;
-
     m_nms = nms;
     m_threshold = thresh;
     m_hier_threshold = hier_thresh;
@@ -121,42 +115,27 @@ bool Detector::impl::setup(std::string label_names_file,
     while (std::getline(label_names_stream, name))
         m_class_names.push_back(name);
 
-    m_net = parse_network_cfg(net_cfg_file.c_str());
-    DPRINTF("Setup: net.n = %d\n", m_net.n);
-    DPRINTF("net.layers[0].batch = %d\n", m_net.layers[0].batch);
-
-    load_weights(&m_net, weight_cfg_file.c_str());
-
-    set_batch_network(&m_net, 1);
-    m_l = m_net.layers[m_net.n-1];
-    DPRINTF("Setup: layers = %d, %d, %d\n", m_l.w, m_l.h, m_l.n);
-
-    if (m_output_width == 0 && m_output_height == 0) {
-        DPRINTF("No detections output widht/height provided, using network dimensions\n");
-        m_output_width = m_net.w;
-        m_output_height = m_net.h;
-    }
-
-    DPRINTF("Image expected w,h = [%d][%d]!\n", m_net.w, m_net.h);
-    DPRINTF("Detection coordinates will be given within the following range w,h = [%d][%d]!\n", m_output_width, m_output_height);
-
-    m_boxes = (box *)calloc(m_l.w * m_l.h * m_l.n, sizeof(box));
-    m_probs = (float **)calloc(m_l.w * m_l.h * m_l.n, sizeof(float *));
-
-    if (!m_boxes || !m_probs) {
-        EPRINTF("Error allocating boxes/probs, %p/%p !\n", m_boxes, m_probs);
-        release();
+    m_net = load_network(net_cfg_file.c_str(), weight_cfg_file.c_str(), 0);
+    if (!m_net) {
+        EPRINTF("Failed to load network %s, %s\n", net_cfg_file.c_str(), weight_cfg_file.c_str());
         return false;
     }
 
-    for (j = 0; j < m_l.w*m_l.h*m_l.n; ++j) {
-        m_probs[j] = (float*)calloc(m_l.classes + 1, sizeof(float));
-        if(!m_probs[j]) {
-            EPRINTF("Error allocating probs[%d]!\n", j);
-            release();
-            return false;
-        }
+    DPRINTF("Setup: net->n = %d\n", m_net->n);
+    set_batch_network(m_net, 1);
+
+    layer l = m_net->layers[m_net->n-1];
+    m_classes = l.classes;
+    DPRINTF("Setup: layers = %d, %d, %d, classes = \n", l.w, l.h, l.n, m_classes);
+
+    if (m_output_width == 0 && m_output_height == 0) {
+        DPRINTF("No detections output widht/height provided, using network dimensions\n");
+        m_output_width = m_net->w;
+        m_output_height = m_net->h;
     }
+
+    DPRINTF("Image expected w,h = [%d][%d]!\n", m_net->w, m_net->h);
+    DPRINTF("Detection coordinates will be given within the following range w,h = [%d][%d]!\n", m_output_width, m_output_height);
 
     DPRINTF("Setup: Done\n");
     m_bSetup = true;
@@ -181,22 +160,23 @@ bool Detector::impl::detect(const Image & image)
         return false;
     }
 
-    if (m_net.w != image.width || m_net.h != image.height || m_net.c != image.channels) {
+    if (m_net->w != image.width || m_net->h != image.height || m_net->c != image.channels) {
         EPRINTF("Given image dimensions do not match the network size: "
                 "image dimensions: w = %d, h = %d, c = %d, network dimensions: w = %d, h = %d, c = %d\n",
-                image.width, image.height, image.channels, m_net.w, m_net.h, m_net.c);
+                image.width, image.height, image.channels, m_net->w, m_net->h, m_net->c);
         return false;
     }
 
     // Predict
     (void) network_predict(m_net, image.data);
-    get_region_boxes(m_l, m_output_width, m_output_height, m_net.w, m_net.h, m_threshold,
-                        m_probs, m_boxes, 0, 0, 0, m_hier_threshold, 0);
 
-    // Apply non maxima suppression
-    DPRINTF("m_l.softmax_tree = %p, nms = %f\n", m_l.softmax_tree, m_nms);
+    if (m_dets)
+        free_detections(m_dets, m_nboxes);
+
+    m_dets = get_network_boxes(m_net, m_output_width, m_output_height, m_threshold, m_hier_threshold, 0, 0, &m_nboxes);
+
     if (m_nms > 0)
-        do_nms(m_boxes, m_probs, m_l.w * m_l.h * m_l.n, m_l.classes, m_nms);
+        do_nms(m_dets, m_nboxes, m_classes, m_nms);
 
     return true;
 }
@@ -210,23 +190,23 @@ bool Detector::impl::get_detections(std::vector<Detection>& detections)
 
     // Extract detections in correct format
     detections.clear();
-    for (i = 0; i < (m_l.w * m_l.h * m_l.n); ++i) {
+    for (i = 0; i < m_nboxes; ++i) {
         float prob;
-        size_t class_index = max_index(m_probs[i], m_l.classes);
+        size_t class_index = max_index(m_dets[i].prob, m_classes);
 
         if (class_index >= m_class_names.size()) {
             EPRINTF("Class index exceeds class names list, probably the model does not match the names list\n");
             return false;
         }
 
-        prob = m_probs[i][class_index];
+        prob = m_dets[i].prob[class_index];
 
         if (prob > m_threshold) {
             Detection detection;
-            detection.x = m_boxes[i].x;
-            detection.y = m_boxes[i].y;
-            detection.width = m_boxes[i].w;
-            detection.height = m_boxes[i].h;
+            detection.x = m_dets[i].bbox.x;
+            detection.y = m_dets[i].bbox.y;
+            detection.width = m_dets[i].bbox.w;
+            detection.height = m_dets[i].bbox.h;
             detection.probability = prob;
             detection.label_index = class_index;
             detection.label = m_class_names[class_index];
@@ -242,7 +222,7 @@ int Detector::impl::get_width()
     if (!m_bSetup)
         return 0;
 
-    return m_net.w;
+    return m_net->w;
 }
 
 int Detector::impl::get_height()
@@ -250,7 +230,7 @@ int Detector::impl::get_height()
     if (!m_bSetup)
         return 0;
 
-    return m_net.h;
+    return m_net->h;
 }
 
 int Detector::impl::get_channels()
@@ -258,7 +238,7 @@ int Detector::impl::get_channels()
     if (!m_bSetup)
         return 0;
 
-    return m_net.c;
+    return m_net->c;
 }
 
 /*
