@@ -316,20 +316,20 @@ dbox diou(box a, box b)
 }
 
 
-void do_nms(box *boxes, float **probs, int total, int classes, float thresh)
+void do_nms(detection *dets, int total, int classes, float thresh)
 {
     int i, j, k;
     for(i = 0; i < total; ++i){
         int any = 0;
-        for(k = 0; k < classes; ++k) any = any || (probs[i][k] > 0);
+        for(k = 0; k < classes; ++k) any = any || (dets[i].prob[k] > 0);
         if(!any) {
             continue;
         }
         for(j = i+1; j < total; ++j){
-            if (box_iou(boxes[i], boxes[j]) > thresh){
+            if (box_iou(dets[i].bbox, dets[j].bbox) > thresh){
                 for(k = 0; k < classes; ++k){
-                    if (probs[i][k] < probs[j][k]) probs[i][k] = 0;
-                    else probs[j][k] = 0;
+                    if (dets[i].prob[k] < dets[j].prob[k]) dets[i].prob[k] = 0;
+                    else dets[j].prob[k] = 0;
                 }
             }
         }
