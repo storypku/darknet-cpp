@@ -14,6 +14,17 @@ using namespace Darknet;
  *  Implementation class, see header for method descriptions
  */
 
+extern "C" {
+    #include <sys/stat.h>
+    #include <sys/types.h>
+    #include <unistd.h>
+}
+
+static bool filesystem_exist(const std::string& path) {
+    struct stat buf = { 0 };
+    return stat(path.c_str(), &buf) == 0;
+}
+
 class Detector::impl
 {
 public:
@@ -94,17 +105,20 @@ bool Detector::impl::setup(std::string label_names_file,
     m_output_width = output_width;
     m_output_height = output_height;
 
-    if (!boost::filesystem::exists(label_names_file)) {
+    if (!filesystem_exist(label_names_file)) {
         DPRINTF("Label names file %s not found\n", label_names_file.c_str());
         return false;
     }
 
-    if (!boost::filesystem::exists(net_cfg_file)) {
+    if (!filesystem_exist(net_cfg_file)) {
+    //if (!boost::filesystem::exists(net_cfg_file)) {
         EPRINTF("Network cfg file %s not found\n", net_cfg_file.c_str());
         return false;
     }
 
-    if (!boost::filesystem::exists(weight_cfg_file)) {
+    if (!filesystem_exist(weight_cfg_file)) {
+    // if (!boost::filesystem::exists(weight_cfg_file)) {
+
         EPRINTF("Weights file %s not found\n", weight_cfg_file.c_str());
         return false;
     }

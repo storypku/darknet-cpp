@@ -51,6 +51,7 @@ if (${WITH_CUDNN})
     set (CUDNN_LIBS "-lcudnn")
 endif()
 
+set(OpenCV_DIR /usr/local/share/OpenCV)
 find_package(OpenCV REQUIRED)
 
 add_subdirectory(src)
