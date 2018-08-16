@@ -1,0 +1,12 @@
+from setuptools import setup
+from setuptools import find_packages
+setup(name='darknet',
+      version='${PACKAGE_VERSION}',
+      description='Darknet in python',
+      url='http://github.com/pjreddie/darknet',
+      author='Joseph Redmon, Liu Jiaming',
+      author_email='pjreddie@gmail.com, liujiaming02@baidu.com',
+      license='BSD',
+      package_dir={"darknet":"${CMAKE_CURRENT_SOURCE_DIR}/darknet"},
+      packages=['darknet'],
+      zip_safe=False)
