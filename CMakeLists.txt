@@ -6,7 +6,7 @@ set(CMAKE_MODULE_PATH "${darknet_cpp_SOURCE_DIR}/cmake")
 # Request C++11 standard, using new CMake variables.
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(PACKAGE_VERSION 1.0.0)
+set(PACKAGE_VERSION 1.0.1)
 
 include(build_type)
 
@@ -52,7 +52,8 @@ if (${WITH_CUDNN})
     set (CUDNN_LIBS "-lcudnn")
 endif()
 
-set(OpenCV_DIR /usr/local/share/OpenCV)
+#set(OpenCV_DIR /usr/local/share/OpenCV)
+set(OpenCV_DIR /opt/ros/kinetic/share/OpenCV-3.3.1-dev)
 find_package(OpenCV REQUIRED)
 
 set (DEBUG_STR "0")

@@ -1,5 +1,5 @@
 from ctypes import *
-import math
+import numpy as np
 import random
 
 def sample(probs):
@@ -120,6 +120,32 @@ def classify(net, meta, im):
     for i in range(meta.classes):
         res.append((meta.names[i], out[i]))
     res = sorted(res, key=lambda x: -x[1])
+    return res
+
+def _from_cv_image(cv_img):
+    h, w, c = cv_img.shape
+    img_array = (cv_img.transpose(2, 0, 1)/255.0).flatten()
+    data = c_array(c_float, img_array)
+    im = IMAGE(w, h, c, data)
+    return im
+
+def detect_ex(net, meta, cv_image, thresh=.5, hier_thresh=.5, nms=.45):
+    im = _from_cv_image(cv_image)
+    num = c_int(0)
+    pnum = pointer(num)
+    predict_image(net, im)
+    dets = get_network_boxes(net, im.w, im.h, thresh, hier_thresh, None, 0, pnum)
+    num = pnum[0]
+    if (nms): do_nms_obj(dets, num, meta.classes, nms);
+
+    res = []
+    for j in range(num):
+        for i in range(meta.classes):
+            if dets[j].prob[i] > 0:
+                b = dets[j].bbox
+                res.append((meta.names[i], dets[j].prob[i], (b.x, b.y, b.w, b.h)))
+    res = sorted(res, key=lambda x: -x[1])
+    free_detections(dets, num)
     return res
 
 def detect(net, meta, image, thresh=.5, hier_thresh=.5, nms=.45):
