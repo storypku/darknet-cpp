@@ -6,10 +6,11 @@ static int coco_ids[] = {1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,2
 #ifdef OPENCV
 #include "math.h"
 
-int cvRound(double value)
-{
-    return(ceil(value));
-}
+// Redefinition error while compilation. 
+//int cvRound(double value)
+//{
+//    return(ceil(value));
+//}
 
 #endif
 
